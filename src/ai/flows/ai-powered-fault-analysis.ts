@@ -41,7 +41,33 @@ const aiPoweredFaultAnalysisPrompt = ai.definePrompt({
   name: 'aiPoweredFaultAnalysisPrompt',
   input: { schema: AIPoweredFaultAnalysisInputSchema },
   output: { schema: AIPoweredFaultAnalysisOutputSchema },
-  prompt: `You are an expert maintenance diagnostician for industrial and shop equipment. Your task is to analyze a current equipment fault description in the context of its historical maintenance logs and the equipment type.\n\nEquipment Type: {{{equipmentType}}}\nCurrent Fault Observed: {{{currentFaultDescription}}}\n\nHistorical Maintenance Logs for similar equipment (if available):\n{{#if historicalMaintenanceLogs}}\n  {{#each historicalMaintenanceLogs}}\n    - Log Entry #{{add @index 1}}:\n      - Fault Observed: "{{{this.faultObserved}}}"\n      - Repair Actions: "{{{this.repairActions}}}"\n      - Outcome: "{{{this.outcome}}}"\n      - Notes: "{{{this.notes}}}"\n      - Timestamp: "{{{this.timestamp}}}"\n  {{/each}}\n{{else}}\n  No historical maintenance logs provided. Base analysis on general knowledge for "{{{equipmentType}}}" and the current fault description.\n{{/if}}\n\nBased on the above information, provide:\n1. A brief summary of your analysis.\n2. A list of common problems that this equipment type typically experiences.\n3. A list of potential causes for the "Current Fault Observed".\n4. A list of concrete troubleshooting steps or repair actions that a maintainer can take.\n\nEnsure your response is structured as a JSON object strictly conforming to the output schema.\n`
+  prompt: `You are an expert maintenance diagnostician for industrial and shop equipment. Your task is to analyze a current equipment fault description in the context of its historical maintenance logs and the equipment type.
+
+Equipment Type: {{{equipmentType}}}
+Current Fault Observed: {{{currentFaultDescription}}}
+
+Historical Maintenance Logs for similar equipment (if available):
+{{#if historicalMaintenanceLogs}}
+  {{#each historicalMaintenanceLogs}}
+    - Historical Record:
+      - Fault Observed: "{{{this.faultObserved}}}"
+      - Repair Actions: "{{{this.repairActions}}}"
+      - Outcome: "{{{this.outcome}}}"
+      - Notes: "{{{this.notes}}}"
+      - Timestamp: "{{{this.timestamp}}}"
+  {{/each}}
+{{else}}
+  No historical maintenance logs provided. Base analysis on general knowledge for "{{{equipmentType}}}" and the current fault description.
+{{/if}}
+
+Based on the above information, provide:
+1. A brief summary of your analysis.
+2. A list of common problems that this equipment type typically experiences.
+3. A list of potential causes for the "Current Fault Observed".
+4. A list of concrete troubleshooting steps or repair actions that a maintainer can take.
+
+Ensure your response is structured as a JSON object strictly conforming to the output schema.
+`
 });
 
 const aiPoweredFaultAnalysisFlow = ai.defineFlow(
