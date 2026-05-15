@@ -4,41 +4,44 @@
 
 @layer base {
   :root {
-    --background: 210 15% 95%;
-    --foreground: 215 25% 15%;
+    /* USMC Tactical Palette */
+    --background: 40 20% 92%;      /* Light Sand / Khaki */
+    --foreground: 40 20% 10%;      /* Deep Charcoal */
     --card: 0 0% 100%;
-    --card-foreground: 215 25% 15%;
+    --card-foreground: 40 20% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 15%;
-    --primary: 215 45% 40%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 215 15% 90%;
-    --secondary-foreground: 215 45% 40%;
-    --muted: 215 15% 92%;
-    --muted-foreground: 215 15% 45%;
-    --accent: 177 75% 51%;
-    --accent-foreground: 215 45% 10%;
-    --destructive: 0 84.2% 60.2%;
+    --popover-foreground: 40 20% 10%;
+    
+    --primary: 82 15% 30%;         /* Olive Drab */
+    --primary-foreground: 40 20% 98%;
+    
+    --secondary: 40 15% 85%;       /* Subdued Sand */
+    --secondary-foreground: 82 15% 20%;
+    
+    --muted: 40 10% 88%;
+    --muted-foreground: 40 10% 40%;
+    
+    --accent: 33 30% 45%;          /* Coyote Brown */
+    --accent-foreground: 40 20% 98%;
+    
+    --destructive: 0 60% 40%;      /* Blood Red (subdued) */
     --destructive-foreground: 0 0% 98%;
-    --border: 215 15% 85%;
-    --input: 215 15% 85%;
-    --ring: 177 75% 51%;
-    --chart-1: 215 45% 40%;
-    --chart-2: 177 75% 51%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.75rem;
+    
+    --border: 40 15% 80%;
+    --input: 40 15% 80%;
+    --ring: 82 15% 30%;
+    
+    --radius: 0.3rem;             /* Sharper, more rigid corners */
 
-    /* Sidebar colors */
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Sidebar - Tactical Dark */
+    --sidebar-background: 82 15% 15%;
+    --sidebar-foreground: 40 20% 90%;
+    --sidebar-primary: 33 30% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 82 15% 25%;
+    --sidebar-accent-foreground: 40 20% 100%;
+    --sidebar-border: 82 15% 20%;
+    --sidebar-ring: 33 30% 50%;
   }
 }
 
@@ -49,13 +52,32 @@
   body {
     @apply bg-background text-foreground font-body;
   }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight uppercase;
+  }
+  .font-mono {
+    @apply font-code text-[0.9em] tracking-tight;
+  }
 }
 
 .bg-accent-gradient {
-  background: linear-gradient(135deg, hsl(var(--primary)), hsl(215 45% 30%));
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(82 15% 20%));
 }
 
 .bottom-nav-blur {
-  backdrop-filter: blur(12px);
-  background-color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  background-color: hsla(40, 20%, 92%, 0.85);
+  border-top: 2px solid hsl(var(--border));
+}
+
+.tactical-card {
+  @apply border-2 border-border shadow-none rounded-none;
+}
+
+.status-deadline {
+  @apply bg-destructive text-destructive-foreground font-bold animate-pulse;
+}
+
+.status-ready {
+  @apply bg-primary text-primary-foreground font-bold;
 }
