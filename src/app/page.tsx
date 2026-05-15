@@ -4,7 +4,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, ClipboardList, ArrowRight, History, Clock, Zap, Shield, AlertTriangle, Database, FileDown } from 'lucide-react';
+import { Package, ClipboardList, ArrowRight, History, Clock, Zap, Shield, AlertTriangle, Database, FileDown, Info } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,8 @@ import { cn } from '@/lib/utils';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { exportReadinessReport } from '@/lib/pdf-export';
+
+const APP_VERSION = "v1.2.4-TACTICAL";
 
 export default function Home() {
   const recentLogs = useLiveQuery(() => 
@@ -36,16 +38,25 @@ export default function Home() {
     <div className="space-y-6">
       <header className="border-b-4 border-primary pb-2">
         <div className="flex justify-between items-start">
-          <h1 className="text-3xl font-black tracking-tighter text-primary flex items-center gap-2">
-            <Shield className="h-8 w-8" />
-            MAINTAIN-MATE
-          </h1>
+          <div className="space-y-1">
+            <h1 className="text-3xl font-black tracking-tighter text-primary flex items-center gap-2">
+              <Shield className="h-8 w-8" />
+              MAINTAIN-MATE
+            </h1>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-[8px] border-primary/30 text-primary/60 font-mono py-0">
+                BUILD: {APP_VERSION}
+              </Badge>
+            </div>
+          </div>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded border border-green-200 cursor-help">
-                  <Database className="h-3 w-3" />
-                  LOCAL ONLY
+                <div className="flex flex-col items-end gap-1">
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded border border-green-200 cursor-help">
+                    <Database className="h-3 w-3" />
+                    LOCAL ONLY
+                  </div>
                 </div>
               </TooltipTrigger>
               <TooltipContent>
@@ -54,13 +65,18 @@ export default function Home() {
             </Tooltip>
           </TooltipProvider>
         </div>
-        <div className="flex justify-between items-center mt-1">
+        <div className="flex justify-between items-center mt-2">
           <Badge variant="outline" className="text-[9px] border-primary text-primary font-mono">
             SECURE LOCAL JOURNAL
           </Badge>
-          <Badge variant="secondary" className="text-[9px] bg-green-500/10 text-green-600 border-green-200 font-mono">
-            DEPLOYMENT TEST OK
-          </Badge>
+          <div className="flex gap-1">
+             <Badge variant="secondary" className="text-[9px] bg-green-500/10 text-green-600 border-green-200 font-mono">
+              SYSTEM ONLINE
+            </Badge>
+            <Badge variant="secondary" className="text-[9px] bg-blue-500/10 text-blue-600 border-blue-200 font-mono">
+              DEPLOYMENT TEST OK
+            </Badge>
+          </div>
         </div>
       </header>
 
@@ -169,6 +185,15 @@ export default function Home() {
           </Link>
         </div>
       </section>
+
+      <footer className="pt-8 pb-4 text-center">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-muted/40 rounded-full border border-border/50">
+          <Info className="h-3 w-3 text-muted-foreground" />
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+            MaintainMate Tactical v1.2.4
+          </span>
+        </div>
+      </footer>
     </div>
   );
 }
