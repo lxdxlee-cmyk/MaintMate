@@ -61,28 +61,35 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
   const [stepsInput, setStepsInput] = useState('');
 
   // Form State for Editing Asset
-  const [editFormData, setEditFormData] = useState<Partial<EquipmentAsset>>({});
+  const [editFormData, setEditFormData] = useState<Partial<EquipmentAsset>>({
+    nomenclature: '',
+    serialNumber: '',
+    owner: '',
+    isInMaintenance: false,
+    currentServiceRequest: '',
+    notes: '',
+  });
 
   // Pre-fill edit form when asset loads or dialog opens
   useEffect(() => {
     if (asset && isEditAssetOpen) {
       setEditFormData({
-        nomenclature: asset.nomenclature,
-        serialNumber: asset.serialNumber,
-        owner: asset.owner,
-        isInMaintenance: asset.isInMaintenance,
-        currentServiceRequest: asset.currentServiceRequest,
-        notes: asset.notes,
+        nomenclature: asset.nomenclature || '',
+        serialNumber: asset.serialNumber || '',
+        owner: asset.owner || '',
+        isInMaintenance: !!asset.isInMaintenance,
+        currentServiceRequest: asset.currentServiceRequest || '',
+        notes: asset.notes || '',
       });
     }
   }, [asset, isEditAssetOpen]);
 
   // Set default SR# in log form if asset has one
   useEffect(() => {
-    if (asset?.currentServiceRequest && !logFormData.serviceRequestId) {
+    if (asset?.currentServiceRequest && isAddLogOpen && !logFormData.serviceRequestId) {
       setLogFormData(prev => ({ ...prev, serviceRequestId: asset.currentServiceRequest }));
     }
-  }, [asset, isAddLogOpen]);
+  }, [asset, isAddLogOpen, logFormData.serviceRequestId]);
 
   const handleMagicFill = async () => {
     if (!logFormData.activityDescription?.trim() || !asset?.nomenclature) {
@@ -170,7 +177,13 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
       }
 
       setIsAddLogOpen(false);
-      setLogFormData({ technician: '', activityDescription: '', status: 'Ongoing' });
+      setLogFormData({ 
+        technician: '', 
+        activityDescription: '', 
+        status: 'Ongoing',
+        serviceRequestId: '',
+        stepsTaken: []
+      });
       setStepsInput('');
       toast({ title: "Log Recorded", description: "Entry added to technical history." });
     } catch (error) {
@@ -204,7 +217,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
               <div className="grid gap-2">
                 <Label>Nomenclature</Label>
                 <Input 
-                  value={editFormData.nomenclature}
+                  value={editFormData.nomenclature || ''}
                   onChange={(e) => setEditFormData({...editFormData, nomenclature: e.target.value})}
                   disabled={isUpdatingAsset}
                 />
@@ -212,7 +225,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
               <div className="grid gap-2">
                 <Label>Serial Number</Label>
                 <Input 
-                  value={editFormData.serialNumber}
+                  value={editFormData.serialNumber || ''}
                   onChange={(e) => setEditFormData({...editFormData, serialNumber: e.target.value})}
                   disabled={isUpdatingAsset}
                 />
@@ -220,7 +233,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
               <div className="grid gap-2">
                 <Label>Owner / Section</Label>
                 <Input 
-                  value={editFormData.owner}
+                  value={editFormData.owner || ''}
                   onChange={(e) => setEditFormData({...editFormData, owner: e.target.value})}
                   disabled={isUpdatingAsset}
                 />
@@ -228,7 +241,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
               <div className="grid gap-2">
                 <Label>Active SR#</Label>
                 <Input 
-                  value={editFormData.currentServiceRequest}
+                  value={editFormData.currentServiceRequest || ''}
                   onChange={(e) => setEditFormData({...editFormData, currentServiceRequest: e.target.value})}
                   disabled={isUpdatingAsset}
                 />
@@ -239,7 +252,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                   <p className="text-[10px] text-muted-foreground">Set as Deadlined / In-Work</p>
                 </div>
                 <Switch 
-                  checked={editFormData.isInMaintenance}
+                  checked={!!editFormData.isInMaintenance}
                   onCheckedChange={(checked) => setEditFormData({...editFormData, isInMaintenance: checked})}
                   disabled={isUpdatingAsset}
                 />
@@ -247,7 +260,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
               <div className="grid gap-2">
                 <Label>Notes</Label>
                 <Textarea 
-                  value={editFormData.notes}
+                  value={editFormData.notes || ''}
                   onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})}
                   disabled={isUpdatingAsset}
                 />
@@ -313,7 +326,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                     <Label>Technician</Label>
                     <Input 
                       placeholder="ID / Name" 
-                      value={logFormData.technician}
+                      value={logFormData.technician || ''}
                       onChange={(e) => setLogFormData({...logFormData, technician: e.target.value})}
                     />
                   </div>
@@ -321,7 +334,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                     <Label>SR# (Service Request)</Label>
                     <Input 
                       placeholder="Current SR#" 
-                      value={logFormData.serviceRequestId}
+                      value={logFormData.serviceRequestId || ''}
                       onChange={(e) => setLogFormData({...logFormData, serviceRequestId: e.target.value})}
                     />
                   </div>
@@ -344,7 +357,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                   <Textarea 
                     placeholder="E.g. Troubleshooting primary power circuit..." 
                     className="h-20"
-                    value={logFormData.activityDescription}
+                    value={logFormData.activityDescription || ''}
                     onChange={(e) => setLogFormData({...logFormData, activityDescription: e.target.value})}
                   />
                 </div>

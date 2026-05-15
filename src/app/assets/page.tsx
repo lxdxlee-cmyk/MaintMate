@@ -66,7 +66,14 @@ export default function AssetsPage() {
       });
       
       setIsAddDialogOpen(false);
-      setFormData({ nomenclature: '', serialNumber: '', owner: '', isInMaintenance: false, notes: '' });
+      setFormData({ 
+        nomenclature: '', 
+        serialNumber: '', 
+        owner: '', 
+        isInMaintenance: false, 
+        currentServiceRequest: '',
+        notes: '' 
+      });
       toast({ title: "Asset Registered", description: "Equipment added to inventory." });
     } catch (error: any) {
       toast({ 
@@ -101,7 +108,7 @@ export default function AssetsPage() {
                 <Input 
                   id="nomenclature" 
                   placeholder="Official Item Name" 
-                  value={formData.nomenclature}
+                  value={formData.nomenclature || ''}
                   onChange={(e) => setFormData({...formData, nomenclature: e.target.value})}
                   disabled={isSaving}
                 />
@@ -111,7 +118,7 @@ export default function AssetsPage() {
                 <Input 
                   id="serial" 
                   placeholder="Manufacturer Serial #" 
-                  value={formData.serialNumber}
+                  value={formData.serialNumber || ''}
                   onChange={(e) => setFormData({...formData, serialNumber: e.target.value})}
                   disabled={isSaving}
                 />
@@ -121,7 +128,7 @@ export default function AssetsPage() {
                 <Input 
                   id="owner" 
                   placeholder="Custodian name" 
-                  value={formData.owner}
+                  value={formData.owner || ''}
                   onChange={(e) => setFormData({...formData, owner: e.target.value})}
                   disabled={isSaving}
                 />
@@ -131,7 +138,7 @@ export default function AssetsPage() {
                 <Input 
                   id="sr" 
                   placeholder="Optional active SR#" 
-                  value={formData.currentServiceRequest}
+                  value={formData.currentServiceRequest || ''}
                   onChange={(e) => setFormData({...formData, currentServiceRequest: e.target.value})}
                   disabled={isSaving}
                 />
@@ -142,7 +149,7 @@ export default function AssetsPage() {
                   <p className="text-xs text-muted-foreground">Mark as active fault/repair</p>
                 </div>
                 <Switch 
-                  checked={formData.isInMaintenance}
+                  checked={!!formData.isInMaintenance}
                   onCheckedChange={(checked) => setFormData({...formData, isInMaintenance: checked})}
                   disabled={isSaving}
                 />
@@ -152,7 +159,7 @@ export default function AssetsPage() {
                 <Textarea 
                   id="notes" 
                   placeholder="Initial condition..." 
-                  value={formData.notes}
+                  value={formData.notes || ''}
                   onChange={(e) => setFormData({...formData, notes: e.target.value})}
                   disabled={isSaving}
                 />
