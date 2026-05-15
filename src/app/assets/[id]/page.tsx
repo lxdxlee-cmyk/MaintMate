@@ -7,7 +7,7 @@ import { db, type MaintenanceLog, type EquipmentAsset, type AssetTemplate, type 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, ChevronLeft, User, Sparkles, Loader2, Activity, Layers, Settings2, FolderOpen, FileDown, ExternalLink, BookOpen, Network, Zap, ShieldAlert, ClipboardList, Cable, Target } from 'lucide-react';
+import { Plus, ChevronLeft, User, Sparkles, Loader2, Activity, Layers, Settings2, FolderOpen, FileDown, BookOpen, Network, Zap, ShieldAlert, ClipboardList, Cable, Target, MapPin } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -65,6 +65,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
   const [editFormData, setEditFormData] = useState<Partial<EquipmentAsset>>({
     serialNumber: '',
     owner: '',
+    maintenanceLocation: '',
     isInMaintenance: false,
     currentServiceRequest: '',
     notes: '',
@@ -76,6 +77,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
       setEditFormData({
         serialNumber: asset.serialNumber || '',
         owner: asset.owner || '',
+        maintenanceLocation: asset.maintenanceLocation || '',
         isInMaintenance: !!asset.isInMaintenance,
         currentServiceRequest: asset.currentServiceRequest || '',
         notes: asset.notes || '',
@@ -123,6 +125,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
       await db.assets.update(assetId, {
         serialNumber: editFormData.serialNumber.trim(),
         owner: editFormData.owner?.trim() || 'Unassigned',
+        maintenanceLocation: editFormData.maintenanceLocation?.trim() || '',
         isInMaintenance: !!editFormData.isInMaintenance,
         currentServiceRequest: editFormData.currentServiceRequest?.trim() || '',
         notes: editFormData.notes?.trim() || '',
@@ -162,7 +165,8 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
         await db.assets.update(assetId, { 
           isInMaintenance: false,
           historicalServiceRequests: [...(asset.historicalServiceRequests || []), asset.currentServiceRequest || ''].filter(s => s),
-          currentServiceRequest: ''
+          currentServiceRequest: '',
+          maintenanceLocation: '' // Clear location when ready
         });
       } else if (srId && !asset?.currentServiceRequest) {
         await db.assets.update(assetId, { currentServiceRequest: srId, isInMaintenance: true });
@@ -204,6 +208,10 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                 <div className="grid gap-2">
                   <Label className="text-[10px] uppercase font-bold">Owner / Section</Label>
                   <Input className="h-8" value={editFormData.owner || ''} onChange={(e) => setEditFormData({...editFormData, owner: e.target.value})} />
+                </div>
+                <div className="grid gap-2">
+                  <Label className="text-[10px] uppercase font-bold">Maintenance Location (Shop/Section)</Label>
+                  <Input className="h-8" value={editFormData.maintenanceLocation || ''} placeholder="e.g. ELMAINT Shop" onChange={(e) => setEditFormData({...editFormData, maintenanceLocation: e.target.value})} />
                 </div>
                 <div className="grid gap-2">
                   <Label className="text-[10px] uppercase font-bold">Active SR#</Label>
@@ -273,9 +281,19 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
              </div>
           </CardHeader>
           <CardContent className="p-4 grid grid-cols-2 gap-4 text-[10px]">
-            <div className="space-y-0.5"><p className="text-muted-foreground uppercase font-black">Custodian</p><p className="font-bold text-xs uppercase">{asset.owner}</p></div>
+            <div className="space-y-0.5"><p className="text-muted-foreground uppercase font-black">Owner</p><p className="font-bold text-xs uppercase">{asset.owner}</p></div>
             <div className="space-y-0.5"><p className="text-muted-foreground uppercase font-black">Active SR#</p><p className="font-mono text-xs">{asset.currentServiceRequest || "NONE"}</p></div>
             
+            {asset.isInMaintenance && asset.maintenanceLocation && (
+              <div className="col-span-2 p-2 bg-destructive/5 border border-dashed border-destructive/20 rounded flex items-center gap-2">
+                <MapPin className="h-3 w-3 text-destructive" />
+                <div className="space-y-0.5">
+                  <p className="text-[9px] font-black uppercase text-destructive/60">Current Maintenance Location</p>
+                  <p className="text-[10px] font-bold uppercase">{asset.maintenanceLocation}</p>
+                </div>
+              </div>
+            )}
+
             <Accordion type="single" collapsible className="col-span-2 space-y-2 mt-2">
               {template?.assemblies?.map((asm, idx) => (
                 <AccordionItem key={idx} value={`asm-${idx}`} className="border-2 rounded-lg px-3 bg-muted/20">

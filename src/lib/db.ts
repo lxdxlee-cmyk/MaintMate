@@ -69,6 +69,7 @@ export interface EquipmentAsset {
   templateId: number; 
   serialNumber: string;
   owner: string;
+  maintenanceLocation?: string; // Where it is while being fixed
   isInMaintenance: boolean;
   currentServiceRequest?: string;
   historicalServiceRequests: string[];
@@ -98,8 +99,8 @@ export class MaintainMateDB extends Dexie {
 
   constructor() {
     super('MaintainMateDB');
-    // Version 8: Advanced Connection Topology
-    this.version(8).stores({
+    // Version 9: Added maintenanceLocation field
+    this.version(9).stores({
       assets: '++id, templateId, serialNumber, owner, isInMaintenance, createdAt',
       logs: '++id, assetId, technician, status, timestamp, serviceRequestId',
       templates: '++id, nomenclature, nsn, tamcn'

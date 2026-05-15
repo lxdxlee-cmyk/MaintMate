@@ -46,6 +46,7 @@ export default function AssetsPage() {
     templateId: undefined,
     serialNumber: '',
     owner: '',
+    maintenanceLocation: '',
     isInMaintenance: false,
     currentServiceRequest: '',
     notes: '',
@@ -64,6 +65,7 @@ export default function AssetsPage() {
         templateId: formData.templateId!,
         serialNumber: formData.serialNumber.trim(),
         owner: (formData.owner || '').trim() || 'Unassigned',
+        maintenanceLocation: (formData.maintenanceLocation || '').trim(),
         isInMaintenance: !!formData.isInMaintenance,
         currentServiceRequest: (formData.currentServiceRequest || '').trim(),
         historicalServiceRequests: [],
@@ -73,7 +75,7 @@ export default function AssetsPage() {
       });
       
       setIsAddDialogOpen(false);
-      setFormData({ templateId: undefined, serialNumber: '', owner: '', isInMaintenance: false, currentServiceRequest: '', notes: '', componentSerials: {} });
+      setFormData({ templateId: undefined, serialNumber: '', owner: '', maintenanceLocation: '', isInMaintenance: false, currentServiceRequest: '', notes: '', componentSerials: {} });
       toast({ title: "Asset Registered", description: "Equipment added to inventory." });
     } catch (error: any) {
       toast({ title: "Registration Failed", description: error.message || "Failed to save.", variant: "destructive" });
@@ -145,6 +147,17 @@ export default function AssetsPage() {
                       className="rounded-none"
                     />
                   </div>
+                </div>
+
+                <div className="grid gap-1">
+                  <Label className="text-[10px] uppercase font-bold">Initial Maint. Location</Label>
+                  <Input 
+                    value={formData.maintenanceLocation || ''}
+                    placeholder="e.g. 2nd Maint Shop (Optional)"
+                    onChange={(e) => setFormData({...formData, maintenanceLocation: e.target.value})}
+                    disabled={isSaving}
+                    className="rounded-none"
+                  />
                 </div>
 
                 {selectedTemplate?.components && selectedTemplate.components.length > 0 && (
@@ -224,7 +237,7 @@ export default function AssetsPage() {
                       {item.template?.nomenclature || 'UNCATEGORIZED'}
                     </h3>
                     <p className="text-[9px] text-muted-foreground truncate font-mono uppercase font-bold">
-                      S/N: {item.serialNumber} | TAM: {item.template?.tamcn || 'N/A'}
+                      S/N: {item.serialNumber} | OWNER: {item.owner}
                     </p>
                   </div>
                   <Badge className={cn(

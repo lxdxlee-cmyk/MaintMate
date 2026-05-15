@@ -32,13 +32,14 @@ export const exportInventoryReport = (assets: (EquipmentAsset & { template?: Ass
   doc.text('UNIT EQUIPMENT INVENTORY', 148, 20, { align: 'center' });
   autoTable(doc, {
     startY: 30,
-    head: [['Nomenclature', 'Serial Number', 'NSN', 'TAMCN', 'Owner', 'Status']],
+    head: [['Nomenclature', 'Serial Number', 'NSN', 'TAMCN', 'Owner', 'Location', 'Status']],
     body: assets.map(a => [
       a.template?.nomenclature || 'N/A',
       a.serialNumber,
       a.template?.nsn || 'N/A',
       a.template?.tamcn || 'N/A',
       a.owner,
+      a.isInMaintenance ? (a.maintenanceLocation || 'IN SHOP') : 'WITH OWNER',
       a.isInMaintenance ? 'NMC / DEADLINE' : 'FMC / READY'
     ]),
     headStyles: { fillColor: primaryColor },
@@ -52,7 +53,7 @@ export const exportAssetHistoryReport = (asset: EquipmentAsset & { template?: As
   doc.setFontSize(16);
   doc.text(`EQUIPMENT RECORD: ${asset.template?.nomenclature || 'SERIALIZED UNIT'}`, 105, 20, { align: 'center' });
   doc.setFontSize(12);
-  doc.text(`Serial Number: ${asset.serialNumber}`, 105, 28, { align: 'center' });
+  doc.text(`Serial Number: ${asset.serialNumber} | Owner: ${asset.owner}`, 105, 28, { align: 'center' });
   autoTable(doc, {
     startY: 45,
     head: [['Date', 'Technician', 'SR#', 'Activity', 'Status']],
@@ -161,13 +162,14 @@ export const exportFullUnitJournal = async (data: {
   doc.text('SECTION 1: EQUIPMENT INVENTORY', 15, 20);
   autoTable(doc, {
     startY: 30,
-    head: [['Nomenclature', 'Serial', 'NSN', 'TAMCN', 'Custodian', 'Status']],
+    head: [['Nomenclature', 'Serial', 'NSN', 'TAMCN', 'Owner', 'Location', 'Status']],
     body: data.assets.map(a => [
       a.template?.nomenclature || 'N/A',
       a.serialNumber,
       a.template?.nsn || 'N/A',
       a.template?.tamcn || 'N/A',
       a.owner,
+      a.isInMaintenance ? (a.maintenanceLocation || 'IN SHOP') : 'WITH OWNER',
       a.isInMaintenance ? 'DEADLINED' : 'READY'
     ]),
     headStyles: { fillColor: primaryColor },
