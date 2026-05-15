@@ -3,15 +3,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Package, ClipboardList, Zap, Search } from 'lucide-react';
+import { Home, Package, ClipboardList, Zap, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { label: 'Home', href: '/', icon: Home },
   { label: 'Assets', href: '/assets', icon: Package },
-  { label: 'Logs', href: '/logs', icon: ClipboardList },
+  { label: 'Templates', href: '/templates', icon: BookOpen },
   { label: 'Analyze', href: '/analyze', icon: Zap },
-  { label: 'Search', href: '/search', icon: Search },
+  { label: 'History', href: '/logs', icon: ClipboardList },
 ];
 
 export function BottomNav() {

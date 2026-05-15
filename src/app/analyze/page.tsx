@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Zap, Loader2, Sparkles, AlertCircle, CheckCircle2, ListChecks } from 'lucide-react';
+import { Zap, Loader2, Sparkles, AlertCircle, CheckCircle2, ListChecks, Info } from 'lucide-react';
 import { aiPoweredFaultAnalysis, type AIPoweredFaultAnalysisOutput } from '@/ai/flows/ai-powered-fault-analysis';
 import { toast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -33,7 +33,13 @@ export default function AnalyzePage() {
 
     try {
       const asset = await db.assets.get(parseInt(selectedAssetId));
-      if (!asset) throw new Error("Equipment asset not found in local journal.");
+      if (!asset) throw new Error("Equipment asset not found.");
+
+      let technicalKnowledge = '';
+      if (asset.templateId) {
+        const template = await db.templates.get(asset.templateId);
+        technicalKnowledge = template?.technicalKnowledge || '';
+      }
 
       const historicalLogs = await db.logs
         .where('assetId')
@@ -42,26 +48,24 @@ export default function AnalyzePage() {
         .toArray();
 
       const result = await aiPoweredFaultAnalysis({
-        equipmentType: asset.type,
+        equipmentType: asset.nomenclature,
+        nsn: asset.nsn,
+        tamcn: asset.tamcn,
+        technicalKnowledge,
         currentFaultDescription: currentFault.trim(),
         historicalMaintenanceLogs: historicalLogs.map(l => ({
-          faultObserved: l.faultObserved || 'Not specified',
-          repairActions: l.repairActions || 'Not specified',
-          outcome: l.outcome || 'Unknown',
-          notes: l.notes || '',
-          timestamp: l.timestamp ? new Date(l.timestamp).toISOString() : new Date().toISOString()
+          faultObserved: l.activityDescription || 'Maintenance Activity',
+          repairActions: l.stepsTaken.join(', ') || 'Observed',
+          outcome: l.status || 'Ongoing',
+          notes: '',
+          timestamp: new Date(l.timestamp).toISOString()
         }))
       });
 
       setAnalysisResult(result);
-      toast({ title: "Analysis complete", description: "AI pattern recognition finished." });
+      toast({ title: "Analysis complete", description: "AI leveraged technical knowledge for diagnostic." });
     } catch (e: any) {
-      console.error("Analysis error:", e);
-      toast({ 
-        title: "Analysis Failed", 
-        description: e.message || "There was an error processing the intelligence request.", 
-        variant: "destructive" 
-      });
+      toast({ title: "Analysis Failed", description: e.message || "Intelligence request error.", variant: "destructive" });
     } finally {
       setIsAnalyzing(false);
     }
@@ -72,9 +76,9 @@ export default function AnalyzePage() {
       <header className="space-y-1">
         <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
           <Zap className="h-6 w-6 text-accent" />
-          Maintenance Intelligence
+          Troubleshooting Agent
         </h1>
-        <p className="text-sm text-muted-foreground">AI-powered fault analysis and troubleshooting</p>
+        <p className="text-sm text-muted-foreground">AI fault analysis driven by technical knowledge base</p>
       </header>
 
       <Card className="border-none shadow-sm bg-white">
@@ -82,31 +86,25 @@ export default function AnalyzePage() {
           <div className="grid gap-2">
             <Label>Select Equipment</Label>
             <Select onValueChange={setSelectedAssetId} value={selectedAssetId} disabled={isAnalyzing}>
-              <SelectTrigger className="bg-background">
-                <SelectValue placeholder="Choose an asset from inventory..." />
+              <SelectTrigger>
+                <SelectValue placeholder="Choose an asset..." />
               </SelectTrigger>
               <SelectContent>
-                {assets === undefined ? (
-                  <div className="p-2 text-center text-xs text-muted-foreground">Loading assets...</div>
-                ) : assets.length === 0 ? (
-                  <div className="p-2 text-center text-xs text-muted-foreground">No assets registered yet.</div>
-                ) : (
-                  assets.map(asset => (
-                    <SelectItem key={asset.id} value={asset.id!.toString()}>
-                      {asset.type} ({asset.identifier})
-                    </SelectItem>
-                  ))
-                )}
+                {assets?.map(asset => (
+                  <SelectItem key={asset.id} value={asset.id!.toString()}>
+                    {asset.nomenclature} (SN: {asset.serialNumber})
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
           <div className="grid gap-2">
-            <Label>Observed Fault / Symptoms</Label>
+            <Label>Symptoms / Observed Fault</Label>
             <Textarea 
-              placeholder="Describe current symptoms or fault details..." 
+              placeholder="e.g. Engine wont turn over, hydraulic leak at boom..." 
               value={currentFault}
               onChange={(e) => setCurrentFault(e.target.value)}
-              className="min-h-[120px] bg-background"
+              className="min-h-[100px]"
               disabled={isAnalyzing}
             />
           </div>
@@ -115,44 +113,35 @@ export default function AnalyzePage() {
             onClick={handleAnalyze}
             disabled={isAnalyzing || !selectedAssetId || !currentFault?.trim()}
           >
-            {isAnalyzing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing Knowledgebase...
-              </>
-            ) : (
-              <>
-                <Sparkles className="mr-2 h-4 w-4" /> Start AI Analysis
-              </>
-            )}
+            {isAnalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+            {isAnalyzing ? "Processing Technical Manuals..." : "Analyze with AI Knowledge"}
           </Button>
         </CardContent>
       </Card>
 
       {analysisResult && (
-        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+        <div className="space-y-4">
           <Card className="border-none shadow-md overflow-hidden bg-white">
-            <CardHeader className="bg-primary/5 p-4 border-b border-primary/10">
+            <CardHeader className="bg-primary/5 p-4 border-b">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary" />
-                <CardTitle className="text-base text-primary">Analysis Results</CardTitle>
+                <CardTitle className="text-base text-primary">Diagnostic Report</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="p-4 space-y-4">
               <div className="space-y-1">
-                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Summary</h4>
-                <p className="text-sm leading-relaxed text-foreground">
-                  {analysisResult.summary}
-                </p>
+                <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Analysis Summary</h4>
+                <p className="text-sm leading-relaxed">{analysisResult.summary}</p>
               </div>
 
-              <div className="grid gap-4 pt-2">
+              <div className="grid gap-4">
                 <section className="space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-destructive">
-                    <AlertCircle className="h-3.5 w-3.5" /> Potential Causes
+                  <h3 className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 text-destructive">
+                    <AlertCircle className="h-3 w-3" /> Likely Causes
                   </h3>
                   <div className="grid gap-2">
                     {analysisResult.potentialCauses.map((cause, i) => (
-                      <div key={i} className="p-3 bg-destructive/5 border-l-2 border-destructive rounded-r-lg text-sm">
+                      <div key={i} className="p-2 bg-destructive/5 border-l-2 border-destructive rounded text-xs">
                         {cause}
                       </div>
                     ))}
@@ -160,28 +149,15 @@ export default function AnalyzePage() {
                 </section>
 
                 <section className="space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-accent">
-                    <ListChecks className="h-3.5 w-3.5" /> Troubleshooting Steps
+                  <h3 className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 text-accent">
+                    <ListChecks className="h-3 w-3" /> Recommended Troubleshooting Steps
                   </h3>
                   <div className="grid gap-2">
                     {analysisResult.troubleshootingSteps.map((step, i) => (
-                      <div key={i} className="p-3 bg-accent/5 border-l-2 border-accent rounded-r-lg text-sm flex gap-3">
-                        <span className="font-bold text-accent shrink-0">{i + 1}.</span>
+                      <div key={i} className="p-2 bg-accent/5 border-l-2 border-accent rounded text-xs flex gap-2">
+                        <span className="font-bold">{i + 1}.</span>
                         <span>{step}</span>
                       </div>
-                    ))}
-                  </div>
-                </section>
-
-                <section className="space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-primary">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Historical Patterns
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {analysisResult.commonProblems.map((prob, i) => (
-                      <Badge key={i} variant="secondary" className="px-3 py-1 font-medium bg-secondary/50">
-                        {prob}
-                      </Badge>
                     ))}
                   </div>
                 </section>

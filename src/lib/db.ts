@@ -1,10 +1,22 @@
 
 import Dexie, { type Table } from 'dexie';
 
-export interface EquipmentAsset {
+export interface AssetTemplate {
   id?: number;
   nomenclature: string;
+  nsn: string;
+  tamcn: string;
+  technicalKnowledge: string;
+  createdAt: number;
+}
+
+export interface EquipmentAsset {
+  id?: number;
+  templateId?: number;
+  nomenclature: string;
   serialNumber: string;
+  nsn: string;
+  tamcn: string;
   owner: string;
   isInMaintenance: boolean;
   currentServiceRequest?: string;
@@ -20,7 +32,6 @@ export interface MaintenanceLog {
   serviceRequestId?: string;
   activityDescription: string;
   stepsTaken: string[];
-  measurements?: string;
   status: 'Ongoing' | 'Awaiting Parts' | 'Resolved' | 'Deferred';
   timestamp: number;
 }
@@ -28,12 +39,14 @@ export interface MaintenanceLog {
 export class MaintainMateDB extends Dexie {
   assets!: Table<EquipmentAsset>;
   logs!: Table<MaintenanceLog>;
+  templates!: Table<AssetTemplate>;
 
   constructor() {
     super('MaintainMateDB');
-    this.version(2).stores({
-      assets: '++id, nomenclature, serialNumber, owner, isInMaintenance, createdAt',
-      logs: '++id, assetId, technician, status, timestamp, serviceRequestId'
+    this.version(3).stores({
+      assets: '++id, templateId, nomenclature, serialNumber, owner, isInMaintenance, createdAt',
+      logs: '++id, assetId, technician, status, timestamp, serviceRequestId',
+      templates: '++id, nomenclature, nsn, tamcn'
     });
   }
 }
