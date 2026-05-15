@@ -1,17 +1,18 @@
 
 "use client"
 
-import { use, useState } from 'react';
+import { use, useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type MaintenanceLog } from '@/lib/db';
+import { db, type MaintenanceLog, type EquipmentAsset } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { ClipboardList, Plus, History, ChevronLeft, User, FileText, Sparkles, Loader2, Clock, Wrench, Activity, Ruler } from 'lucide-react';
+import { ClipboardList, Plus, History, ChevronLeft, User, FileText, Sparkles, Loader2, Clock, Wrench, Activity, Ruler, Settings2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -21,9 +22,15 @@ import { cn } from '@/lib/utils';
 export default function AssetDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const assetId = parseInt(id);
+  
+  // Dialog States
   const [isAddLogOpen, setIsAddLogOpen] = useState(false);
+  const [isEditAssetOpen, setIsEditAssetOpen] = useState(false);
+  
+  // Loading States
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUpdatingAsset, setIsUpdatingAsset] = useState(false);
 
   const asset = useLiveQuery(() => isNaN(assetId) ? undefined : db.assets.get(assetId), [assetId]);
   const logs = useLiveQuery(() => 
@@ -31,6 +38,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
     [assetId]
   );
 
+  // Form State for Log
   const [logFormData, setLogFormData] = useState<Partial<MaintenanceLog>>({
     technician: '',
     activityDescription: '',
@@ -39,8 +47,24 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
     status: 'Ongoing',
     serviceRequestId: '',
   });
-
   const [stepsInput, setStepsInput] = useState('');
+
+  // Form State for Editing Asset
+  const [editFormData, setEditFormData] = useState<Partial<EquipmentAsset>>({});
+
+  // Pre-fill edit form when asset loads or dialog opens
+  useEffect(() => {
+    if (asset && isEditAssetOpen) {
+      setEditFormData({
+        nomenclature: asset.nomenclature,
+        serialNumber: asset.serialNumber,
+        owner: asset.owner,
+        isInMaintenance: asset.isInMaintenance,
+        currentServiceRequest: asset.currentServiceRequest,
+        notes: asset.notes,
+      });
+    }
+  }, [asset, isEditAssetOpen]);
 
   const handleMagicFill = async () => {
     if (!logFormData.activityDescription?.trim() || !asset?.nomenclature) {
@@ -66,6 +90,31 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
       toast({ title: "AI Unavailable", description: "Failed to fetch suggestions.", variant: "destructive" });
     } finally {
       setIsAiLoading(false);
+    }
+  };
+
+  const handleEditAsset = async () => {
+    if (!editFormData.nomenclature?.trim() || !editFormData.serialNumber?.trim()) {
+      toast({ title: "Required Fields", description: "Nomenclature and Serial Number are required.", variant: "destructive" });
+      return;
+    }
+
+    setIsUpdatingAsset(true);
+    try {
+      await db.assets.update(assetId, {
+        nomenclature: editFormData.nomenclature.trim(),
+        serialNumber: editFormData.serialNumber.trim(),
+        owner: editFormData.owner?.trim() || 'Unassigned',
+        isInMaintenance: !!editFormData.isInMaintenance,
+        currentServiceRequest: editFormData.currentServiceRequest?.trim() || '',
+        notes: editFormData.notes?.trim() || '',
+      });
+      setIsEditAssetOpen(false);
+      toast({ title: "Asset Updated", description: "Technical records have been synchronized." });
+    } catch (error) {
+      toast({ title: "Update Failed", description: "Could not save changes to database.", variant: "destructive" });
+    } finally {
+      setIsUpdatingAsset(false);
     }
   };
 
@@ -110,14 +159,87 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
     }
   };
 
-  if (asset === undefined) return <div className="p-20 text-center">Loading...</div>;
-  if (!asset) return <div className="p-20 text-center">Not Found</div>;
+  if (asset === undefined) return <div className="p-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /></div>;
+  if (!asset) return <div className="p-20 text-center">Asset Not Found</div>;
 
   return (
     <div className="space-y-6 pb-20">
-      <Link href="/assets" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
-        <ChevronLeft className="h-4 w-4 mr-1" /> Back to Inventory
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link href="/assets" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+          <ChevronLeft className="h-4 w-4 mr-1" /> Inventory
+        </Link>
+        
+        <Dialog open={isEditAssetOpen} onOpenChange={setIsEditAssetOpen}>
+          <DialogTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 text-muted-foreground">
+              <Settings2 className="h-4 w-4 mr-1" /> Edit Asset
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Edit Equipment Details</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+              <div className="grid gap-2">
+                <Label>Nomenclature</Label>
+                <Input 
+                  value={editFormData.nomenclature}
+                  onChange={(e) => setEditFormData({...editFormData, nomenclature: e.target.value})}
+                  disabled={isUpdatingAsset}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Serial Number</Label>
+                <Input 
+                  value={editFormData.serialNumber}
+                  onChange={(e) => setEditFormData({...editFormData, serialNumber: e.target.value})}
+                  disabled={isUpdatingAsset}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Owner / Section</Label>
+                <Input 
+                  value={editFormData.owner}
+                  onChange={(e) => setEditFormData({...editFormData, owner: e.target.value})}
+                  disabled={isUpdatingAsset}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Active SR#</Label>
+                <Input 
+                  value={editFormData.currentServiceRequest}
+                  onChange={(e) => setEditFormData({...editFormData, currentServiceRequest: e.target.value})}
+                  disabled={isUpdatingAsset}
+                />
+              </div>
+              <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+                <div className="space-y-0.5">
+                  <Label>Maintenance Status</Label>
+                  <p className="text-[10px] text-muted-foreground">Set as Deadlined / In-Work</p>
+                </div>
+                <Switch 
+                  checked={editFormData.isInMaintenance}
+                  onCheckedChange={(checked) => setEditFormData({...editFormData, isInMaintenance: checked})}
+                  disabled={isUpdatingAsset}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Notes</Label>
+                <Textarea 
+                  value={editFormData.notes}
+                  onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})}
+                  disabled={isUpdatingAsset}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={handleEditAsset} className="w-full" disabled={isUpdatingAsset}>
+                {isUpdatingAsset ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
 
       <div className="space-y-4">
         <div className="flex items-start justify-between gap-4">
