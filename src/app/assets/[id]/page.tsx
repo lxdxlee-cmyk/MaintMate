@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { format } from 'date-fns';
