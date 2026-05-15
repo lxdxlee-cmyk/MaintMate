@@ -3,7 +3,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, ClipboardList, ArrowRight, History, Clock, Zap, Shield, ShieldCheck, AlertTriangle, Database } from 'lucide-react';
+import { Package, ClipboardList, ArrowRight, History, Clock, Zap, Shield, AlertTriangle, Database } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,7 @@ export default function Home() {
   const stats = useLiveQuery(async () => {
     const assetCount = await db.assets.count();
     const logCount = await db.logs.count();
+    // Use boolean true for indexed query
     const deadlineCount = await db.assets.where('isInMaintenance').equals(1).count();
     return { assetCount, logCount, deadlineCount };
   });
@@ -108,7 +109,7 @@ export default function Home() {
                       {log.technician || 'UNKNOWN TECH'}
                     </span>
                     <span className="text-[9px] font-mono font-bold text-muted-foreground">
-                      T-{formatDistanceToNow(log.timestamp)}
+                      T-{formatDistanceToNow(new Date(log.timestamp))}
                     </span>
                   </div>
                   <h3 className="font-bold text-xs mb-1 line-clamp-1">{log.activityDescription}</h3>

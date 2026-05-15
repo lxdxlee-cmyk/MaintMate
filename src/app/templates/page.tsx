@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, BookOpen, Trash2, Search, Loader2, Layers, Settings2, Edit2 } from 'lucide-react';
+import { Plus, BookOpen, Trash2, Search, Loader2, Layers, Edit } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
@@ -373,7 +373,7 @@ export default function TemplatesPage() {
                 </div>
                 <div className="flex items-center gap-1 shrink-0 ml-2">
                   <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(t)} className="text-muted-foreground h-8 w-8 hover:text-primary">
-                    <Edit2 className="h-4 w-4" />
+                    <Edit className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="icon" onClick={() => handleDelete(t.id!)} className="text-muted-foreground h-8 w-8 hover:text-destructive">
                     <Trash2 className="h-4 w-4" />
