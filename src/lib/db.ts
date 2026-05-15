@@ -2,9 +2,11 @@
 import Dexie, { type Table } from 'dexie';
 
 export interface TechnicalConnection {
-  type: 'Ethernet' | 'Serial' | 'RF' | 'Power' | 'Grounding' | 'Control' | 'Signal';
-  sourceComponent: string;
-  destComponent: string;
+  id: string;
+  type: 'Ethernet' | 'Serial' | 'RF' | 'Power' | 'Grounding' | 'Control' | 'Signal' | 'Other';
+  connectorType?: string; // e.g. BNC, RJ45, DB9
+  sourceComponentId: string;
+  destComponentId: string;
   sourcePort?: string;
   destPort?: string;
   cableId?: string;
@@ -96,8 +98,8 @@ export class MaintainMateDB extends Dexie {
 
   constructor() {
     super('MaintainMateDB');
-    // Version 7: Hierarchical Technical Knowledge Framework
-    this.version(7).stores({
+    // Version 8: Advanced Connection Topology
+    this.version(8).stores({
       assets: '++id, templateId, serialNumber, owner, isInMaintenance, createdAt',
       logs: '++id, assetId, technician, status, timestamp, serviceRequestId',
       templates: '++id, nomenclature, nsn, tamcn'

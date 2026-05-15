@@ -19,10 +19,20 @@ const ComponentSpecSchema = z.object({
   })).optional(),
 });
 
+const ConnectionSchema = z.object({
+  type: z.string(),
+  connectorType: z.string().optional(),
+  sourceComponent: z.string(),
+  destComponent: z.string(),
+  cableId: z.string().optional(),
+  notes: z.string().optional(),
+});
+
 const AssemblySchema = z.object({
   name: z.string(),
   description: z.string().optional(),
   components: z.array(ComponentSpecSchema),
+  connections: z.array(ConnectionSchema).optional(),
 });
 
 const MaintenanceLogEntrySchema = z.object({
@@ -57,29 +67,34 @@ const aiPoweredFaultAnalysisPrompt = ai.definePrompt({
   name: 'aiPoweredFaultAnalysisPrompt',
   input: { schema: AIPoweredFaultAnalysisInputSchema },
   output: { schema: AIPoweredFaultAnalysisOutputSchema },
-  prompt: `You are an expert technical diagnostician.
+  prompt: `You are an expert technical diagnostician specializing in ground electronics maintenance.
 Analyze the fault for: {{{equipmentType}}} (NSN: {{{nsn}}}).
 
-Hierarchy & Specs:
+Technical Topology & Specs:
 {{#each assemblies}}
 Assembly: {{{this.name}}}
+Components:
 {{#each this.components}}
-- Component: {{{this.name}}} ({{{this.purpose}}})
-  Measurements: {{{this.measurements}}}
+- {{{this.name}}} ({{{this.purpose}}})
+  Specs: {{{this.measurements}}}
   Known Faults: {{#each this.knownFaults}}{{{this.symptom}}} -> {{{this.fix}}}; {{/each}}
+{{/each}}
+Connections (Wire/Signal Paths):
+{{#each this.connections}}
+- {{{this.type}}} [{{{this.cableId}}}] : {{{this.sourceComponent}}} -> {{{this.destComponent}}} ({{{this.connectorType}}}) {{{this.notes}}}
 {{/each}}
 {{/each}}
 
-Field Knowledge: {{{technicalKnowledge}}}
+Field Knowledge (Tribal): {{{technicalKnowledge}}}
 
 Observed Fault: {{{currentFaultDescription}}}
 
-History:
+Maintenance History:
 {{#each historicalMaintenanceLogs}}
 - {{{this.faultObserved}}} | Actions: {{{this.repairActions}}} | Outcome: {{{this.outcome}}}
 {{/each}}
 
-Provide a diagnostic report mapping logic against the provided assembly/component structure.`
+Provide a high-fidelity diagnostic report. Map potential failures against the structured connection paths and component measurements provided. Ensure steps align with standard electronics troubleshooting procedures (e.g., check signal path continuity, verify power rails).`
 });
 
 const aiPoweredFaultAnalysisFlow = ai.defineFlow(

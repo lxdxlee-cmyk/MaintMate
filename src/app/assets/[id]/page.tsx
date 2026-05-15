@@ -3,11 +3,11 @@
 
 import { use, useState, useEffect, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type MaintenanceLog, type EquipmentAsset, type AssetTemplate, type TechnicalAssembly, type TechnicalComponent } from '@/lib/db';
+import { db, type MaintenanceLog, type EquipmentAsset, type AssetTemplate, type TechnicalAssembly, type TechnicalComponent, type TechnicalConnection } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, ChevronLeft, User, Sparkles, Loader2, Activity, Layers, Settings2, FolderOpen, FileDown, ExternalLink, BookOpen, Network, Zap, ShieldAlert, ClipboardList } from 'lucide-react';
+import { Plus, ChevronLeft, User, Sparkles, Loader2, Activity, Layers, Settings2, FolderOpen, FileDown, ExternalLink, BookOpen, Network, Zap, ShieldAlert, ClipboardList, Cable, Target } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { suggestMaintenancePrefill } from '@/ai/flows/smart-maintenance-log-prefill-flow';
 import { exportAssetHistoryReport } from '@/lib/pdf-export';
+import { cn } from '@/lib/utils';
 
 export default function AssetDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -183,40 +184,41 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="space-y-6 pb-20">
       <div className="flex items-center justify-between">
-        <Link href="/assets" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
-          <ChevronLeft className="h-4 w-4 mr-1" /> Unit Inventory
+        <Link href="/assets" className="inline-flex items-center text-[10px] font-black uppercase text-muted-foreground hover:text-primary transition-colors tracking-widest">
+          <ChevronLeft className="h-3 w-3 mr-1" /> Back to Inventory
         </Link>
         <div className="flex gap-2">
-          <Button variant="ghost" size="sm" onClick={() => exportAssetHistoryReport(asset, logs)} className="h-8 text-[9px] font-bold uppercase gap-1">
-            <FileDown className="h-4 w-4" /> Export ERO
+          <Button variant="ghost" size="sm" onClick={() => exportAssetHistoryReport(asset, logs)} className="h-8 text-[9px] font-black uppercase gap-1 tracking-widest border border-dashed">
+            <FileDown className="h-3 w-3" /> Export ERO
           </Button>
           <Dialog open={isEditAssetOpen} onOpenChange={setIsEditAssetOpen}>
-            <DialogTrigger asChild><Button variant="ghost" size="sm" className="h-8 text-muted-foreground"><Settings2 className="h-4 w-4 mr-1" /> Config</Button></DialogTrigger>
+            <DialogTrigger asChild><Button variant="ghost" size="sm" className="h-8 text-muted-foreground"><Settings2 className="h-3 w-3 mr-1" /> Config</Button></DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader><DialogTitle>Edit Serialized Record</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle className="uppercase font-black text-primary tracking-widest">System Configuration</DialogTitle></DialogHeader>
               <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
                 <div className="grid gap-2">
-                  <Label>Serial Number</Label>
-                  <Input value={editFormData.serialNumber || ''} onChange={(e) => setEditFormData({...editFormData, serialNumber: e.target.value})} />
+                  <Label className="text-[10px] uppercase font-bold">Serial Number</Label>
+                  <Input className="font-mono h-8" value={editFormData.serialNumber || ''} onChange={(e) => setEditFormData({...editFormData, serialNumber: e.target.value})} />
                 </div>
                 <div className="grid gap-2">
-                  <Label>Owner / Section</Label>
-                  <Input value={editFormData.owner || ''} onChange={(e) => setEditFormData({...editFormData, owner: e.target.value})} />
+                  <Label className="text-[10px] uppercase font-bold">Owner / Section</Label>
+                  <Input className="h-8" value={editFormData.owner || ''} onChange={(e) => setEditFormData({...editFormData, owner: e.target.value})} />
                 </div>
                 <div className="grid gap-2">
-                  <Label>Active SR#</Label>
-                  <Input value={editFormData.currentServiceRequest || ''} onChange={(e) => setEditFormData({...editFormData, currentServiceRequest: e.target.value})} />
+                  <Label className="text-[10px] uppercase font-bold">Active SR#</Label>
+                  <Input className="h-8 font-mono" value={editFormData.currentServiceRequest || ''} onChange={(e) => setEditFormData({...editFormData, currentServiceRequest: e.target.value})} />
                 </div>
                 
                 {template?.assemblies?.map((asm, aIdx) => (
                   <div key={aIdx} className="space-y-3">
-                    <Label className="text-xs uppercase font-bold text-primary">{asm.name} Serials</Label>
-                    {asm.components.map((c, cIdx) => (
+                    <Separator />
+                    <Label className="text-[10px] uppercase font-black text-primary">{asm.name} component Serials</Label>
+                    {asm.components.map((c) => (
                       <div key={c.id} className="grid gap-1">
-                        <Label className="text-[10px] uppercase">{c.name}</Label>
+                        <Label className="text-[9px] uppercase font-bold">{c.name}</Label>
                         <Input 
-                          placeholder="Unique ID"
-                          className="font-mono text-xs"
+                          placeholder="Unique Serial"
+                          className="font-mono text-xs h-7"
                           value={editFormData.componentSerials?.[c.id] || ''} 
                           onChange={(e) => {
                             const newSerials = { ...editFormData.componentSerials, [c.id]: e.target.value };
@@ -228,13 +230,15 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                   </div>
                 ))}
 
-                <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
-                  <Label>Deadlined Status</Label>
+                <div className="flex items-center justify-between p-3 border-2 border-dashed rounded-lg bg-muted/30">
+                  <Label className="text-[10px] uppercase font-bold">Deadlined Status (NMC)</Label>
                   <Switch checked={!!editFormData.isInMaintenance} onCheckedChange={(checked) => setEditFormData({...editFormData, isInMaintenance: checked})} />
                 </div>
               </div>
               <DialogFooter>
-                <Button onClick={handleEditAsset} className="w-full" disabled={isUpdatingAsset}>{isUpdatingAsset ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Save Changes"}</Button>
+                <Button onClick={handleEditAsset} className="w-full h-10 font-black uppercase tracking-widest" disabled={isUpdatingAsset}>
+                  {isUpdatingAsset ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Commit Changes"}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -244,45 +248,88 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
       <div className="space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
+            <h1 className="text-2xl font-black text-primary tracking-tighter flex items-center gap-2">
               {template?.nomenclature || 'SERIALIZED UNIT'}
               {template && (
                 <Link href={`/templates?search=${template.nomenclature}`}><Button variant="ghost" size="icon" className="h-6 w-6"><BookOpen className="h-4 w-4" /></Button></Link>
               )}
             </h1>
-            <p className="text-sm font-mono text-muted-foreground uppercase tracking-widest">SN: {asset.serialNumber}</p>
+            <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest font-bold">SN: {asset.serialNumber}</p>
           </div>
-          <Badge variant={asset.isInMaintenance ? "destructive" : "secondary"}>{asset.isInMaintenance ? "NMC" : "FMC"}</Badge>
+          <Badge className={cn(
+            "text-[10px] h-6 px-3 rounded-none font-black uppercase tracking-widest",
+            asset.isInMaintenance ? "bg-destructive animate-pulse" : "bg-primary"
+          )}>
+            {asset.isInMaintenance ? "Non-Mission Capable" : "Ready / FMC"}
+          </Badge>
         </div>
 
-        <Card className="border-none shadow-sm bg-white">
-          <CardContent className="p-4 grid grid-cols-2 gap-4 text-xs">
-            <div><p className="text-muted-foreground uppercase font-bold mb-1">Custodian</p><p className="font-medium">{asset.owner}</p></div>
-            <div><p className="text-muted-foreground uppercase font-bold mb-1">Active SR#</p><p className="font-mono">{asset.currentServiceRequest || "None"}</p></div>
+        <Card className="tactical-card bg-white">
+          <CardHeader className="p-4 pb-0">
+             <div className="flex items-center gap-2 text-primary">
+               <ShieldAlert className="h-4 w-4" />
+               <CardTitle className="text-[10px] font-black uppercase tracking-widest">Doctrine & Status</CardTitle>
+             </div>
+          </CardHeader>
+          <CardContent className="p-4 grid grid-cols-2 gap-4 text-[10px]">
+            <div className="space-y-0.5"><p className="text-muted-foreground uppercase font-black">Custodian</p><p className="font-bold text-xs uppercase">{asset.owner}</p></div>
+            <div className="space-y-0.5"><p className="text-muted-foreground uppercase font-black">Active SR#</p><p className="font-mono text-xs">{asset.currentServiceRequest || "NONE"}</p></div>
             
             <Accordion type="single" collapsible className="col-span-2 space-y-2 mt-2">
               {template?.assemblies?.map((asm, idx) => (
-                <AccordionItem key={idx} value={`asm-${idx}`} className="border-none bg-muted/30 rounded-lg px-3">
-                  <AccordionTrigger className="hover:no-underline py-2 text-[10px] font-black uppercase"><span className="flex items-center gap-2"><Layers className="h-3.5 w-3.5" /> {asm.name}</span></AccordionTrigger>
-                  <AccordionContent className="space-y-2 pt-1 pb-3">
-                    {asm.components.map(comp => (
-                      <div key={comp.id} className="bg-white/60 p-2 rounded border border-border/50">
-                        <div className="flex justify-between items-start">
-                          <p className="font-bold text-[10px] uppercase">{comp.name}</p>
-                          {asset.componentSerials?.[comp.id] && (
-                            <Badge variant="outline" className="text-[8px] h-3.5 px-1 font-mono">{asset.componentSerials[comp.id]}</Badge>
+                <AccordionItem key={idx} value={`asm-${idx}`} className="border-2 rounded-lg px-3 bg-muted/20">
+                  <AccordionTrigger className="hover:no-underline py-2.5 text-[10px] font-black uppercase tracking-tight">
+                    <span className="flex items-center gap-2"><Layers className="h-3.5 w-3.5" /> {asm.name}</span>
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-4 pt-1 pb-4">
+                    <div className="space-y-2">
+                      <Label className="text-[9px] uppercase font-black text-muted-foreground flex items-center gap-1.5"><Target className="h-3 w-3" /> Sub-Components</Label>
+                      {asm.components.map(comp => (
+                        <div key={comp.id} className="bg-white p-2.5 rounded border-2 border-border/50">
+                          <div className="flex justify-between items-start">
+                            <p className="font-black text-[11px] uppercase tracking-tight">{comp.name}</p>
+                            {asset.componentSerials?.[comp.id] && (
+                              <Badge variant="outline" className="text-[9px] h-4 px-1.5 font-mono bg-primary/5">{asset.componentSerials[comp.id]}</Badge>
+                            )}
+                          </div>
+                          {comp.purpose && <p className="text-[9px] text-muted-foreground mt-0.5 font-medium">{comp.purpose}</p>}
+                          {comp.expectedMeasurements && comp.expectedMeasurements.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {comp.expectedMeasurements.map((m, mIdx) => (
+                                <span key={mIdx} className="text-[9px] bg-accent/10 px-1.5 py-0.5 rounded-sm text-accent font-mono font-bold">{m.name}: {m.value}</span>
+                              ))}
+                            </div>
                           )}
                         </div>
-                        {comp.purpose && <p className="text-[9px] text-muted-foreground mt-0.5">{comp.purpose}</p>}
-                        {comp.expectedMeasurements && comp.expectedMeasurements.length > 0 && (
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {comp.expectedMeasurements.map((m, mIdx) => (
-                              <span key={mIdx} className="text-[8px] bg-primary/5 px-1 rounded text-primary/70">{m.name}: {m.value}</span>
-                            ))}
-                          </div>
-                        )}
+                      ))}
+                    </div>
+
+                    {asm.connections && asm.connections.length > 0 && (
+                      <div className="space-y-2">
+                         <Label className="text-[9px] uppercase font-black text-muted-foreground flex items-center gap-1.5"><Cable className="h-3 w-3" /> Topology & Signal Paths</Label>
+                         <div className="grid gap-2">
+                           {asm.connections.map(conn => {
+                             const source = asm.components.find(c => c.id === conn.sourceComponentId);
+                             const dest = asm.components.find(c => c.id === conn.destComponentId);
+                             return (
+                               <div key={conn.id} className="p-2 bg-white rounded border border-primary/20 text-[9px] space-y-1">
+                                 <div className="flex items-center justify-between font-bold">
+                                   <span className="uppercase text-primary">{source?.name || 'SRC'}</span>
+                                   <Network className="h-2.5 w-2.5 text-muted-foreground" />
+                                   <span className="uppercase text-primary">{dest?.name || 'DEST'}</span>
+                                 </div>
+                                 <div className="flex gap-2 text-muted-foreground font-mono uppercase">
+                                   <span className="bg-muted px-1 rounded">{conn.type}</span>
+                                   {conn.connectorType && <span>CON: {conn.connectorType}</span>}
+                                   {conn.cableId && <span>CABLE: {conn.cableId}</span>}
+                                 </div>
+                                 {conn.notes && <p className="italic text-muted-foreground mt-0.5 truncate">{conn.notes}</p>}
+                               </div>
+                             );
+                           })}
+                         </div>
                       </div>
-                    ))}
+                    )}
                   </AccordionContent>
                 </AccordionItem>
               ))}
@@ -293,59 +340,65 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
 
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold flex items-center gap-2"><Activity className="h-4 w-4 text-primary" /> ERO History</h2>
+          <h2 className="text-sm font-black flex items-center gap-2 uppercase tracking-widest text-primary"><Activity className="h-4 w-4" /> ERO Log History</h2>
           <Dialog open={isAddLogOpen} onOpenChange={setIsAddLogOpen}>
-            <DialogTrigger asChild><Button size="sm" className="h-8"><Plus className="h-4 w-4 mr-1" /> Log Entry</Button></DialogTrigger>
+            <DialogTrigger asChild><Button size="sm" className="h-8 text-[10px] font-black uppercase tracking-widest"><Plus className="h-3 w-3 mr-1" /> Log Activity</Button></DialogTrigger>
             <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto">
-              <DialogHeader><DialogTitle>Technical Journal Entry</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle className="uppercase font-black text-primary tracking-widest">Technical Journal Entry</DialogTitle></DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2"><Label>Maintainer</Label><Input placeholder="Rank / Name" value={logFormData.technician || ''} onChange={(e) => setLogFormData({...logFormData, technician: e.target.value})} /></div>
-                  <div className="grid gap-2"><Label>Task SR#</Label><Input placeholder="SR#" value={logFormData.serviceRequestId || ''} onChange={(e) => setLogFormData({...logFormData, serviceRequestId: e.target.value})} /></div>
+                  <div className="grid gap-2"><Label className="text-[10px] uppercase font-bold">Maintainer</Label><Input placeholder="Rank / Name" className="h-9" value={logFormData.technician || ''} onChange={(e) => setLogFormData({...logFormData, technician: e.target.value})} /></div>
+                  <div className="grid gap-2"><Label className="text-[10px] uppercase font-bold">Task SR#</Label><Input placeholder="SR#" className="h-9 font-mono" value={logFormData.serviceRequestId || ''} onChange={(e) => setLogFormData({...logFormData, serviceRequestId: e.target.value})} /></div>
                 </div>
                 <div className="grid gap-2">
-                  <div className="flex items-center justify-between"><Label>Activity Description</Label><Button variant="ghost" size="sm" onClick={handleMagicFill} disabled={isAiLoading} className="h-6 text-[10px] text-accent font-bold p-0">{isAiLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />} Assist (AI)</Button></div>
-                  <Textarea placeholder="Task details..." className="h-20" value={logFormData.activityDescription || ''} onChange={(e) => setLogFormData({...logFormData, activityDescription: e.target.value})} />
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] uppercase font-bold">Activity Description</Label>
+                    <Button variant="ghost" size="sm" onClick={handleMagicFill} disabled={isAiLoading} className="h-6 text-[9px] text-accent font-black p-0 uppercase tracking-widest">
+                      {isAiLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />} AI Assist
+                    </Button>
+                  </div>
+                  <Textarea placeholder="Describe the fault or maintenance task..." className="h-20 text-xs" value={logFormData.activityDescription || ''} onChange={(e) => setLogFormData({...logFormData, activityDescription: e.target.value})} />
                 </div>
-                <div className="grid gap-2"><Label>Repair Actions (one per line)</Label><Textarea className="h-40" value={stepsInput} onChange={(e) => setStepsInput(e.target.value)} /></div>
+                <div className="grid gap-2"><Label className="text-[10px] uppercase font-bold">Repair Actions (one per line)</Label><Textarea className="h-40 font-mono text-xs" value={stepsInput} onChange={(e) => setStepsInput(e.target.value)} /></div>
                 <div className="grid gap-2">
-                  <Label>Job Status</Label>
+                  <Label className="text-[10px] uppercase font-bold">Job Status</Label>
                   <div className="flex flex-wrap gap-2">
-                    {['Ongoing', 'Awaiting Parts', 'Resolved'].map((s) => (
-                      <Badge key={s} variant={logFormData.status === s ? 'default' : 'outline'} className="cursor-pointer" onClick={() => setLogFormData({...logFormData, status: s as any})}>{s}</Badge>
+                    {['Ongoing', 'Awaiting Parts', 'Resolved', 'Deferred'].map((s) => (
+                      <Badge key={s} variant={logFormData.status === s ? 'default' : 'outline'} className="cursor-pointer text-[9px] h-6 px-3 rounded-none uppercase font-black tracking-tighter" onClick={() => setLogFormData({...logFormData, status: s as any})}>{s}</Badge>
                     ))}
                   </div>
                 </div>
               </div>
-              <DialogFooter><Button onClick={handleAddLog} className="w-full" disabled={isSaving}>{isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Commit Record"}</Button></DialogFooter>
+              <DialogFooter><Button onClick={handleAddLog} className="w-full h-10 font-black uppercase tracking-widest" disabled={isSaving}>{isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Commit Technical Record"}</Button></DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
 
         <div className="space-y-4">
           {Object.entries(groupedLogs).map(([srId, srLogs]) => (
-            <Accordion key={srId} type="single" collapsible className="bg-white rounded-lg shadow-sm">
+            <Accordion key={srId} type="single" collapsible className="bg-white rounded-none border-2 border-border shadow-sm">
               <AccordionItem value={srId} className="border-none px-4">
                 <AccordionTrigger className="hover:no-underline py-3">
                    <div className="flex items-center gap-3 text-left">
                      <FolderOpen className="h-4 w-4 text-primary" />
-                     <div><p className="text-sm font-bold text-primary">SR: {srId}</p><p className="text-[10px] text-muted-foreground uppercase">{srLogs.length} Records</p></div>
+                     <div className="space-y-0.5"><p className="text-xs font-black text-primary uppercase tracking-tight">SR: {srId}</p><p className="text-[9px] text-muted-foreground uppercase font-bold">{srLogs.length} Journal Entries</p></div>
                    </div>
                 </AccordionTrigger>
                 <AccordionContent className="space-y-3 pb-4">
                   {srLogs.map((log) => (
-                    <Card key={log.id} className="border-none bg-muted/20">
+                    <Card key={log.id} className="border-none bg-muted/20 rounded-none border-l-2 border-primary">
                       <CardHeader className="p-3 pb-2 flex-row justify-between items-center space-y-0">
-                        <span className="text-[10px] font-bold text-primary flex items-center gap-1.5"><User className="h-3 w-3" /> {log.technician}</span>
-                        <span className="text-[10px] text-muted-foreground">{format(log.timestamp, 'MMM d, HH:mm')}</span>
+                        <span className="text-[9px] font-black text-primary flex items-center gap-1.5 uppercase tracking-tighter"><User className="h-3 w-3" /> {log.technician}</span>
+                        <span className="text-[9px] text-muted-foreground font-mono font-bold">{format(log.timestamp, 'MMM d, HH:mm')}</span>
                       </CardHeader>
                       <CardContent className="p-3 pt-0 space-y-2">
-                        <p className="text-xs font-bold leading-tight">{log.activityDescription}</p>
+                        <p className="text-xs font-bold leading-tight uppercase tracking-tight">{log.activityDescription}</p>
                         {log.stepsTaken?.length > 0 && (
-                          <div className="bg-white/60 p-2 rounded text-[11px] space-y-1">
-                            {log.stepsTaken.map((step, i) => <div key={i} className="flex gap-2"><span className="text-muted-foreground font-mono">{i + 1}.</span><span>{step}</span></div>)}
+                          <div className="bg-white/80 p-2.5 rounded-sm text-[10px] space-y-1.5 font-mono">
+                            {log.stepsTaken.map((step, i) => <div key={i} className="flex gap-2"><span className="text-primary font-black">{i + 1}.</span><span>{step}</span></div>)}
                           </div>
                         )}
+                        <Badge variant="outline" className="text-[8px] h-4 uppercase font-black bg-white/50">{log.status}</Badge>
                       </CardContent>
                     </Card>
                   ))}
