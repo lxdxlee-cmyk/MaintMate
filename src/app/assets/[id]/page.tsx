@@ -3,11 +3,11 @@
 
 import { use, useState, useEffect, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type MaintenanceLog, type EquipmentAsset, type TemplateComponent } from '@/lib/db';
+import { db, type MaintenanceLog, type EquipmentAsset } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ClipboardList, Plus, History, ChevronLeft, User, FileText, Sparkles, Loader2, Clock, Wrench, Activity, Ruler, Settings2, FolderOpen, Layers, Hash } from 'lucide-react';
+import { Plus, ChevronLeft, User, Sparkles, Loader2, Activity, Layers, Settings2, FolderOpen, FileDown } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -18,8 +18,7 @@ import { toast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { suggestMaintenancePrefill } from '@/ai/flows/smart-maintenance-log-prefill-flow';
-import { cn } from '@/lib/utils';
-import { Separator } from '@/components/ui/separator';
+import { exportAssetHistoryReport } from '@/lib/pdf-export';
 
 export default function AssetDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -83,12 +82,6 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
       });
     }
   }, [asset, isEditAssetOpen]);
-
-  useEffect(() => {
-    if (asset?.currentServiceRequest && isAddLogOpen && !logFormData.serviceRequestId) {
-      setLogFormData(prev => ({ ...prev, serviceRequestId: asset.currentServiceRequest }));
-    }
-  }, [asset, isAddLogOpen, logFormData.serviceRequestId]);
 
   const handleMagicFill = async () => {
     if (!logFormData.activityDescription?.trim() || !asset?.nomenclature) {
@@ -185,6 +178,12 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
     }
   };
 
+  const handleExportHistory = () => {
+    if (asset && logs) {
+      exportAssetHistoryReport(asset, logs);
+    }
+  };
+
   if (asset === undefined) return <div className="p-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /></div>;
   if (!asset) return <div className="p-20 text-center">Asset Not Found</div>;
 
@@ -195,73 +194,78 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
           <ChevronLeft className="h-4 w-4 mr-1" /> Inventory
         </Link>
         
-        <Dialog open={isEditAssetOpen} onOpenChange={setIsEditAssetOpen}>
-          <DialogTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 text-muted-foreground">
-              <Settings2 className="h-4 w-4 mr-1" /> Edit Asset
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Edit Equipment Details</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
-              <div className="grid gap-2">
-                <Label>Nomenclature</Label>
-                <Input value={editFormData.nomenclature || ''} onChange={(e) => setEditFormData({...editFormData, nomenclature: e.target.value})} />
-              </div>
-              <div className="grid gap-2">
-                <Label>Serial Number</Label>
-                <Input value={editFormData.serialNumber || ''} onChange={(e) => setEditFormData({...editFormData, serialNumber: e.target.value})} />
-              </div>
-              <div className="grid gap-2">
-                <Label>Owner / Section</Label>
-                <Input value={editFormData.owner || ''} onChange={(e) => setEditFormData({...editFormData, owner: e.target.value})} />
-              </div>
-              <div className="grid gap-2">
-                <Label>Active SR#</Label>
-                <Input value={editFormData.currentServiceRequest || ''} onChange={(e) => setEditFormData({...editFormData, currentServiceRequest: e.target.value})} />
-              </div>
-              
-              {template?.components && template.components.length > 0 && (
-                <div className="space-y-3">
-                  <Label className="text-xs uppercase font-bold text-primary">Sub-Component Serial Numbers</Label>
-                  {template.components.map((c, i) => (
-                    <div key={i} className="grid gap-1">
-                      <Label className="text-[10px] uppercase">{c.name}</Label>
-                      <Input 
-                        placeholder="Serial Number"
-                        className="font-mono text-xs"
-                        value={editFormData.componentSerials?.[c.name] || ''} 
-                        onChange={(e) => {
-                          const newSerials = { ...editFormData.componentSerials, [c.name]: e.target.value };
-                          setEditFormData({...editFormData, componentSerials: newSerials});
-                        }} 
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
-                <div className="space-y-0.5">
-                  <Label>Maintenance Status</Label>
-                  <p className="text-[10px] text-muted-foreground">Set as Deadlined / In-Work</p>
-                </div>
-                <Switch checked={!!editFormData.isInMaintenance} onCheckedChange={(checked) => setEditFormData({...editFormData, isInMaintenance: checked})} />
-              </div>
-              <div className="grid gap-2">
-                <Label>Notes</Label>
-                <Textarea value={editFormData.notes || ''} onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})} />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button onClick={handleEditAsset} className="w-full" disabled={isUpdatingAsset}>
-                {isUpdatingAsset ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Save Changes"}
+        <div className="flex gap-2">
+          <Button variant="ghost" size="sm" onClick={handleExportHistory} className="h-8 text-[9px] font-bold uppercase gap-1">
+            <FileDown className="h-4 w-4" /> Export ERO
+          </Button>
+          <Dialog open={isEditAssetOpen} onOpenChange={setIsEditAssetOpen}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 text-muted-foreground">
+                <Settings2 className="h-4 w-4 mr-1" /> Edit
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Edit Equipment Details</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+                <div className="grid gap-2">
+                  <Label>Nomenclature</Label>
+                  <Input value={editFormData.nomenclature || ''} onChange={(e) => setEditFormData({...editFormData, nomenclature: e.target.value})} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Serial Number</Label>
+                  <Input value={editFormData.serialNumber || ''} onChange={(e) => setEditFormData({...editFormData, serialNumber: e.target.value})} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Owner / Section</Label>
+                  <Input value={editFormData.owner || ''} onChange={(e) => setEditFormData({...editFormData, owner: e.target.value})} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Active SR#</Label>
+                  <Input value={editFormData.currentServiceRequest || ''} onChange={(e) => setEditFormData({...editFormData, currentServiceRequest: e.target.value})} />
+                </div>
+                
+                {template?.components && template.components.length > 0 && (
+                  <div className="space-y-3">
+                    <Label className="text-xs uppercase font-bold text-primary">Sub-Component Serial Numbers</Label>
+                    {template.components.map((c, i) => (
+                      <div key={i} className="grid gap-1">
+                        <Label className="text-[10px] uppercase">{c.name}</Label>
+                        <Input 
+                          placeholder="Serial Number"
+                          className="font-mono text-xs"
+                          value={editFormData.componentSerials?.[c.name] || ''} 
+                          onChange={(e) => {
+                            const newSerials = { ...editFormData.componentSerials, [c.name]: e.target.value };
+                            setEditFormData({...editFormData, componentSerials: newSerials});
+                          }} 
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+                  <div className="space-y-0.5">
+                    <Label>Maintenance Status</Label>
+                    <p className="text-[10px] text-muted-foreground">Set as Deadlined / In-Work</p>
+                  </div>
+                  <Switch checked={!!editFormData.isInMaintenance} onCheckedChange={(checked) => setEditFormData({...editFormData, isInMaintenance: checked})} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Notes</Label>
+                  <Textarea value={editFormData.notes || ''} onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})} />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button onClick={handleEditAsset} className="w-full" disabled={isUpdatingAsset}>
+                  {isUpdatingAsset ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Save Changes"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <div className="space-y-4">

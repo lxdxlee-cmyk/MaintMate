@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from 'react';
@@ -8,10 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, BookOpen, Trash2, Search, Loader2, Layers, Edit } from 'lucide-react';
+import { Plus, BookOpen, Trash2, Search, Loader2, Layers, Edit, FileDown } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import { exportPubsCatalog } from '@/lib/pdf-export';
 
 export default function TemplatesPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -128,6 +130,12 @@ export default function TemplatesPage() {
     }
   };
 
+  const handleExportPubs = () => {
+    if (templates) {
+      exportPubsCatalog(templates);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -135,117 +143,121 @@ export default function TemplatesPage() {
           <BookOpen className="h-6 w-6" />
           Technical PUBS
         </h1>
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm"><Plus className="h-4 w-4 mr-1" /> New Pub</Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create Technical Publication (PUBS)</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4 pr-1">
-              <div className="grid gap-2">
-                <Label>Nomenclature</Label>
-                <Input 
-                  placeholder="e.g. TRC-170, MRC-142B" 
-                  value={formData.nomenclature || ''} 
-                  onChange={e => setFormData({...formData, nomenclature: e.target.value})}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+        <div className="flex gap-2">
+          <Button variant="ghost" size="sm" onClick={handleExportPubs} className="h-8 text-[9px] font-bold uppercase gap-1">
+            <FileDown className="h-4 w-4" /> Export Catalog
+          </Button>
+          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm"><Plus className="h-4 w-4 mr-1" /> New Pub</Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Create Technical Publication (PUBS)</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4 pr-1">
                 <div className="grid gap-2">
-                  <Label>NSN</Label>
+                  <Label>Nomenclature</Label>
                   <Input 
-                    placeholder="xxxx-xx-xxx-xxxx" 
-                    value={formData.nsn || ''} 
-                    onChange={e => setFormData({...formData, nsn: e.target.value})}
+                    placeholder="e.g. TRC-170, MRC-142B" 
+                    value={formData.nomenclature || ''} 
+                    onChange={e => setFormData({...formData, nomenclature: e.target.value})}
                   />
                 </div>
-                <div className="grid gap-2">
-                  <Label>TAMCN</Label>
-                  <Input 
-                    placeholder="e.g. E12345" 
-                    value={formData.tamcn || ''} 
-                    onChange={e => setFormData({...formData, tamcn: e.target.value})}
-                  />
-                </div>
-              </div>
-
-              <Separator className="my-2" />
-              
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label className="flex items-center gap-2">
-                    <Layers className="h-4 w-4 text-primary" />
-                    Sub-Systems / Components
-                  </Label>
-                </div>
-
-                <div className="grid gap-3 p-3 border rounded-lg bg-muted/20">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
+                    <Label>NSN</Label>
                     <Input 
-                      placeholder="Component Name (e.g. Power Supply)" 
-                      value={newComponent.name}
-                      onChange={e => setNewComponent({...newComponent, name: e.target.value})}
+                      placeholder="xxxx-xx-xxx-xxxx" 
+                      value={formData.nsn || ''} 
+                      onChange={e => setFormData({...formData, nsn: e.target.value})}
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Textarea 
-                      placeholder="Description/Purpose" 
-                      className="h-16"
-                      value={newComponent.description}
-                      onChange={e => setNewComponent({...newComponent, description: e.target.value})}
-                    />
-                  </div>
-                  <div className="grid gap-2">
+                    <Label>TAMCN</Label>
                     <Input 
-                      placeholder="Specific Measurements (e.g. 5VDC +/- 0.1V)" 
-                      value={newComponent.measurements}
-                      onChange={e => setNewComponent({...newComponent, measurements: e.target.value})}
+                      placeholder="e.g. E12345" 
+                      value={formData.tamcn || ''} 
+                      onChange={e => setFormData({...formData, tamcn: e.target.value})}
                     />
                   </div>
-                  <Button variant="secondary" size="sm" onClick={handleAddComponent} className="w-full">
-                    <Plus className="h-3 w-3 mr-1" /> Add Component
-                  </Button>
                 </div>
 
-                <div className="space-y-2">
-                  {formData.components?.map((comp, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2 bg-white rounded border shadow-sm">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold truncate">{comp.name}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{comp.measurements}</p>
-                      </div>
-                      <Button variant="ghost" size="icon" onClick={() => removeComponent(idx)} className="h-8 w-8 text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                <Separator className="my-2" />
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2">
+                      <Layers className="h-4 w-4 text-primary" />
+                      Sub-Systems / Components
+                    </Label>
+                  </div>
+
+                  <div className="grid gap-3 p-3 border rounded-lg bg-muted/20">
+                    <div className="grid gap-2">
+                      <Input 
+                        placeholder="Component Name (e.g. Power Supply)" 
+                        value={newComponent.name}
+                        onChange={e => setNewComponent({...newComponent, name: e.target.value})}
+                      />
                     </div>
-                  ))}
+                    <div className="grid gap-2">
+                      <Textarea 
+                        placeholder="Description/Purpose" 
+                        className="h-16"
+                        value={newComponent.description}
+                        onChange={e => setNewComponent({...newComponent, description: e.target.value})}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Input 
+                        placeholder="Specific Measurements (e.g. 5VDC +/- 0.1V)" 
+                        value={newComponent.measurements}
+                        onChange={e => setNewComponent({...newComponent, measurements: e.target.value})}
+                      />
+                    </div>
+                    <Button variant="secondary" size="sm" onClick={handleAddComponent} className="w-full">
+                      <Plus className="h-3 w-3 mr-1" /> Add Component
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {formData.components?.map((comp, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-2 bg-white rounded border shadow-sm">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold truncate">{comp.name}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">{comp.measurements}</p>
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={() => removeComponent(idx)} className="h-8 w-8 text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <Separator className="my-2" />
+
+                <div className="grid gap-2">
+                  <Label>Technical Knowledge (AI Context)</Label>
+                  <Textarea 
+                    placeholder="Paste manual troubleshooting logic or fault codes here..." 
+                    className="h-32"
+                    value={formData.technicalKnowledge || ''} 
+                    onChange={e => setFormData({...formData, technicalKnowledge: e.target.value})}
+                  />
                 </div>
               </div>
-
-              <Separator className="my-2" />
-
-              <div className="grid gap-2">
-                <Label>Technical Knowledge (AI Context)</Label>
-                <Textarea 
-                  placeholder="Paste manual troubleshooting logic or fault codes here..." 
-                  className="h-32"
-                  value={formData.technicalKnowledge || ''} 
-                  onChange={e => setFormData({...formData, technicalKnowledge: e.target.value})}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button onClick={handleAddTemplate} className="w-full" disabled={isSaving}>
-                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Register Publication"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button onClick={handleAddTemplate} className="w-full" disabled={isSaving}>
+                  {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Register Publication"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>

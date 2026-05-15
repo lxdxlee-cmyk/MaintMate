@@ -1,14 +1,17 @@
+
 "use client"
 
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, ClipboardList, ArrowRight, History, Clock, Zap, Shield, AlertTriangle, Database } from 'lucide-react';
+import { Package, ClipboardList, ArrowRight, History, Clock, Zap, Shield, AlertTriangle, Database, FileDown } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
+import { exportReadinessReport } from '@/lib/pdf-export';
 
 export default function Home() {
   const recentLogs = useLiveQuery(() => 
@@ -18,10 +21,16 @@ export default function Home() {
   const stats = useLiveQuery(async () => {
     const assetCount = await db.assets.count();
     const logCount = await db.logs.count();
-    // Use boolean true for indexed query
     const deadlineCount = await db.assets.where('isInMaintenance').equals(1).count();
-    return { assetCount, logCount, deadlineCount };
+    const fmcCount = assetCount - deadlineCount;
+    return { assetCount, logCount, deadlineCount, fmcCount };
   });
+
+  const handleExportReadiness = () => {
+    if (stats) {
+      exportReadinessReport(stats);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -55,6 +64,13 @@ export default function Home() {
         </div>
       </header>
 
+      <div className="flex justify-between items-center">
+        <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Readiness Snapshot</h2>
+        <Button variant="ghost" size="sm" onClick={handleExportReadiness} className="h-6 text-[9px] font-bold uppercase gap-1">
+          <FileDown className="h-3 w-3" /> Export Report
+        </Button>
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <Card className="tactical-card bg-primary text-primary-foreground">
           <CardHeader className="pb-2 space-y-0">
@@ -63,7 +79,7 @@ export default function Home() {
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black">{stats ? stats.assetCount - stats.deadlineCount : 0}</span>
+              <span className="text-3xl font-black">{stats ? stats.fmcCount : 0}</span>
               <span className="text-xs font-bold opacity-70">/ {stats?.assetCount ?? 0} FMC</span>
             </div>
             <p className="text-[9px] mt-1 font-mono uppercase">Full Mission Capable</p>

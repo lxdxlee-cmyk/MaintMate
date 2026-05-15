@@ -3,14 +3,12 @@
 
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type EquipmentAsset, type AssetTemplate } from '@/lib/db';
+import { db, type EquipmentAsset } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Package, Loader2, Wrench, ShieldCheck, BookOpen, AlertTriangle, Target } from 'lucide-react';
+import { Plus, Search, Package, Loader2, BookOpen, AlertTriangle, Target, FileDown } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +16,7 @@ import { Switch } from '@/components/ui/switch';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { exportInventoryReport } from '@/lib/pdf-export';
 
 export default function AssetsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -60,7 +59,7 @@ export default function AssetsPage() {
         nomenclature: template.nomenclature,
         nsn: template.nsn,
         tamcn: template.tamcn,
-        componentSerials: {}, // Reset for new template
+        componentSerials: {},
       });
     }
   };
@@ -98,6 +97,12 @@ export default function AssetsPage() {
     }
   };
 
+  const handleExportInventory = () => {
+    if (assets) {
+      exportInventoryReport(assets);
+    }
+  };
+
   const selectedTemplate = templates?.find(t => t.id === formData.templateId);
 
   return (
@@ -108,6 +113,9 @@ export default function AssetsPage() {
           Unit Inventory
         </h1>
         <div className="flex gap-1">
+          <Button variant="ghost" size="sm" onClick={handleExportInventory} className="h-7 text-[9px] font-bold uppercase gap-1 px-2 border-2 border-dashed">
+            <FileDown className="h-3 w-3" /> PDF
+          </Button>
           <Link href="/templates">
             <Button size="sm" variant="outline" className="h-7 text-[10px] uppercase font-bold px-2 rounded-none">
               <BookOpen className="h-3 w-3 mr-1" /> PUBS

@@ -6,10 +6,12 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, ClipboardList, Package, User, Clock, Filter, Activity } from 'lucide-react';
+import { Search, ClipboardList, Package, User, Clock, Filter, FileDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { exportMasterLogs } from '@/lib/pdf-export';
 
 export default function LogsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,13 +36,24 @@ export default function LogsPage() {
     );
   }, [searchTerm]);
 
+  const handleExportMasterLogs = () => {
+    if (logsData) {
+      exportMasterLogs(logsData);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-primary">Technical History</h1>
-        <Badge variant="outline" className="h-6 gap-1">
-          <Filter className="h-3 w-3" /> All Tasks
-        </Badge>
+        <div className="flex gap-2">
+          <Button variant="ghost" size="sm" onClick={handleExportMasterLogs} className="h-8 text-[9px] font-bold uppercase gap-1">
+            <FileDown className="h-4 w-4" /> Export ERO Log
+          </Button>
+          <Badge variant="outline" className="h-6 gap-1">
+            <Filter className="h-3 w-3" /> All Tasks
+          </Badge>
+        </div>
       </div>
 
       <div className="relative">
