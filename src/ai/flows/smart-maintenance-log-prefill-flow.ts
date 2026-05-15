@@ -20,10 +20,7 @@ export type SuggestMaintenancePrefillInput = z.infer<
 const SuggestMaintenancePrefillOutputSchema = z.object({
   suggestedSteps: z
     .array(z.string())
-    .describe('Step-by-step troubleshooting or maintenance actions.'),
-  recommendedMeasurements: z
-    .string()
-    .describe('Common values or tolerances to check for this equipment type.'),
+    .describe('Step-by-step troubleshooting or maintenance actions, including specific technical measurements or expected readings to verify.'),
   likelyStatus: z.enum(['Ongoing', 'Awaiting Parts', 'Resolved']).describe('The most likely status of the task.'),
 });
 export type SuggestMaintenancePrefillOutput = z.infer<
@@ -46,10 +43,10 @@ They describe their current activity as: {{{description}}}.
 
 Suggest:
 1. A logical sequence of troubleshooting steps or maintenance actions.
-2. Specific technical measurements, tolerances, or readings they should record (e.g., "Check voltage at J1, expect 24VDC +/- 0.5").
+2. Integrate specific technical measurements, tolerances, or readings they should record directly into these steps (e.g., "Step 2: Check voltage at J1, expect 24VDC +/- 0.5").
 3. Based on the complexity, suggest if this is likely "Ongoing" or can be "Resolved" immediately.
 
-Provide your suggestions in a JSON object.`,
+Provide your suggestions in a JSON object. Ensure steps are concise and technically accurate.`,
 });
 
 const smartMaintenanceLogPrefillFlow = ai.defineFlow(
@@ -59,7 +56,7 @@ const smartMaintenanceLogPrefillFlow = ai.defineFlow(
     outputSchema: SuggestMaintenancePrefillOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    const {output} = await prefillPrompt(input);
     return output!;
   }
 );

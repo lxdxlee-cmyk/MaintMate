@@ -1,18 +1,19 @@
 
 "use client"
 
-import { use, useState, useEffect } from 'react';
+import { use, useState, useEffect, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type MaintenanceLog, type EquipmentAsset } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { ClipboardList, Plus, History, ChevronLeft, User, FileText, Sparkles, Loader2, Clock, Wrench, Activity, Ruler, Settings2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ClipboardList, Plus, History, ChevronLeft, User, FileText, Sparkles, Loader2, Clock, Wrench, Activity, Ruler, Settings2, FolderOpen } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { toast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -38,12 +39,22 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
     [assetId]
   );
 
+  // Group logs by Service Request ID
+  const groupedLogs = useMemo(() => {
+    if (!logs) return {};
+    return logs.reduce((acc, log) => {
+      const sr = log.serviceRequestId || 'Unassigned / General';
+      if (!acc[sr]) acc[sr] = [];
+      acc[sr].push(log);
+      return acc;
+    }, {} as Record<string, MaintenanceLog[]>);
+  }, [logs]);
+
   // Form State for Log
   const [logFormData, setLogFormData] = useState<Partial<MaintenanceLog>>({
     technician: '',
     activityDescription: '',
     stepsTaken: [],
-    measurements: '',
     status: 'Ongoing',
     serviceRequestId: '',
   });
@@ -66,6 +77,13 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
     }
   }, [asset, isEditAssetOpen]);
 
+  // Set default SR# in log form if asset has one
+  useEffect(() => {
+    if (asset?.currentServiceRequest && !logFormData.serviceRequestId) {
+      setLogFormData(prev => ({ ...prev, serviceRequestId: asset.currentServiceRequest }));
+    }
+  }, [asset, isAddLogOpen]);
+
   const handleMagicFill = async () => {
     if (!logFormData.activityDescription?.trim() || !asset?.nomenclature) {
       toast({ title: "Details needed", description: "Enter a task description first." });
@@ -81,11 +99,10 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
       
       setLogFormData(prev => ({
         ...prev,
-        measurements: result.recommendedMeasurements,
         status: result.likelyStatus as any,
       }));
       setStepsInput(result.suggestedSteps.join('\n'));
-      toast({ title: "AI Assisted", description: "Technical steps and measurements suggested." });
+      toast({ title: "AI Assisted", description: "Steps and measurements suggested." });
     } catch (e) {
       toast({ title: "AI Unavailable", description: "Failed to fetch suggestions.", variant: "destructive" });
     } finally {
@@ -128,13 +145,14 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
     try {
       const stepsArray = stepsInput.split('\n').map(s => s.trim()).filter(s => s !== '');
       
+      const srId = logFormData.serviceRequestId?.trim() || asset?.currentServiceRequest || '';
+
       await db.logs.add({
         assetId,
         technician: logFormData.technician.trim(),
-        serviceRequestId: logFormData.serviceRequestId?.trim() || asset?.currentServiceRequest || '',
+        serviceRequestId: srId,
         activityDescription: logFormData.activityDescription.trim(),
         stepsTaken: stepsArray,
-        measurements: logFormData.measurements?.trim() || '',
         status: logFormData.status || 'Ongoing',
         timestamp: Date.now(),
       });
@@ -146,6 +164,9 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
           historicalServiceRequests: [...(asset.historicalServiceRequests || []), asset.currentServiceRequest || ''].filter(s => s),
           currentServiceRequest: ''
         });
+      } else if (srId && !asset?.currentServiceRequest) {
+        // If they provided a new SR, associate it with the asset
+        await db.assets.update(assetId, { currentServiceRequest: srId, isInMaintenance: true });
       }
 
       setIsAddLogOpen(false);
@@ -274,7 +295,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold flex items-center gap-2">
             <Activity className="h-4 w-4 text-primary" />
-            Maintenance Log
+            Maintenance History
           </h2>
           <Dialog open={isAddLogOpen} onOpenChange={setIsAddLogOpen}>
             <DialogTrigger asChild>
@@ -297,9 +318,9 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label>SR# (if different)</Label>
+                    <Label>SR# (Service Request)</Label>
                     <Input 
-                      placeholder="Service Request #" 
+                      placeholder="Current SR#" 
                       value={logFormData.serviceRequestId}
                       onChange={(e) => setLogFormData({...logFormData, serviceRequestId: e.target.value})}
                     />
@@ -321,7 +342,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                     </Button>
                   </div>
                   <Textarea 
-                    placeholder="Troubleshooting primary power circuit..." 
+                    placeholder="E.g. Troubleshooting primary power circuit..." 
                     className="h-20"
                     value={logFormData.activityDescription}
                     onChange={(e) => setLogFormData({...logFormData, activityDescription: e.target.value})}
@@ -329,22 +350,14 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                 </div>
 
                 <div className="grid gap-2">
-                  <Label>Troubleshooting Steps / Progress (one per line)</Label>
+                  <Label>Steps & Measurements (one per line)</Label>
                   <Textarea 
-                    placeholder="Step 1: Check fuse F1&#10;Step 2: Probe J2 connector..." 
-                    className="h-32"
+                    placeholder="Step 1: Check fuse F1 - Result: Intact&#10;Step 2: Probe J2 connector - Reading: 24.2VDC..." 
+                    className="h-40"
                     value={stepsInput}
                     onChange={(e) => setStepsInput(e.target.value)}
                   />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label>Measurements / Readings</Label>
-                  <Input 
-                    placeholder="Reading: 24.2VDC, Temp: 45C" 
-                    value={logFormData.measurements}
-                    onChange={(e) => setLogFormData({...logFormData, measurements: e.target.value})}
-                  />
+                  <p className="text-[10px] text-muted-foreground">Record technical measurements and readings directly within the steps.</p>
                 </div>
 
                 <div className="grid gap-2">
@@ -373,56 +386,63 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
         </div>
 
         <div className="space-y-4">
-          {logs?.length === 0 ? (
+          {Object.keys(groupedLogs).length === 0 ? (
             <div className="text-center py-12 bg-white rounded-xl border border-dashed">
               <p className="text-sm text-muted-foreground">No activities recorded.</p>
             </div>
           ) : (
-            logs?.map((log) => (
-              <Card key={log.id} className="border-none shadow-sm bg-white">
-                <CardHeader className="p-4 bg-muted/20 pb-2 flex-row justify-between items-center space-y-0">
-                  <span className="text-[10px] font-bold text-primary flex items-center gap-1.5">
-                    <User className="h-3 w-3" /> {log.technician}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {format(log.timestamp, 'MMM d, HH:mm')}
-                  </span>
-                </CardHeader>
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex justify-between items-start">
-                    <p className="text-sm font-bold">{log.activityDescription}</p>
-                    <Badge variant={log.status === 'Resolved' ? 'default' : 'outline'} className="text-[9px]">
-                      {log.status}
-                    </Badge>
-                  </div>
-
-                  {log.stepsTaken && log.stepsTaken.length > 0 && (
-                    <div className="bg-muted/30 p-2 rounded text-xs space-y-1">
-                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1 flex items-center gap-1">
-                        <Wrench className="h-2.5 w-2.5" /> Steps & Troubleshooting
-                      </p>
-                      {log.stepsTaken.map((step, i) => (
-                        <div key={i} className="flex gap-2 text-foreground/80">
-                          <span className="text-muted-foreground">{i + 1}.</span>
-                          <span>{step}</span>
-                        </div>
-                      ))}
+            <Accordion type="single" collapsible className="space-y-4" defaultValue={asset.currentServiceRequest || Object.keys(groupedLogs)[0]}>
+              {Object.entries(groupedLogs).map(([srId, srLogs]) => (
+                <AccordionItem key={srId} value={srId} className="border-none">
+                  <AccordionTrigger className="bg-white rounded-lg shadow-sm px-4 py-3 hover:no-underline hover:bg-muted/5 transition-all">
+                    <div className="flex items-center gap-3 text-left">
+                      <div className="h-8 w-8 rounded-full bg-primary/5 flex items-center justify-center">
+                        <FolderOpen className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-primary">SR: {srId}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-tighter">
+                          {srLogs.length} Entr{srLogs.length === 1 ? 'y' : 'ies'} • Last update {format(srLogs[0].timestamp, 'MMM d')}
+                        </p>
+                      </div>
                     </div>
-                  )}
+                  </AccordionTrigger>
+                  <AccordionContent className="pt-3 space-y-3">
+                    {srLogs.map((log) => (
+                      <Card key={log.id} className="border-none shadow-sm bg-white/60 ml-4">
+                        <CardHeader className="p-3 bg-muted/20 pb-2 flex-row justify-between items-center space-y-0">
+                          <span className="text-[10px] font-bold text-primary flex items-center gap-1.5">
+                            <User className="h-3 w-3" /> {log.technician}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {format(log.timestamp, 'MMM d, HH:mm')}
+                          </span>
+                        </CardHeader>
+                        <CardContent className="p-3 space-y-2">
+                          <div className="flex justify-between items-start">
+                            <p className="text-xs font-bold">{log.activityDescription}</p>
+                            <Badge variant={log.status === 'Resolved' ? 'default' : 'outline'} className="text-[8px] h-4">
+                              {log.status}
+                            </Badge>
+                          </div>
 
-                  {log.measurements && (
-                    <div className="flex items-center gap-2 text-[11px] bg-accent/5 p-2 rounded border border-accent/10">
-                      <Ruler className="h-3 w-3 text-accent" />
-                      <span className="font-medium text-accent-foreground">{log.measurements}</span>
-                    </div>
-                  )}
-
-                  {log.serviceRequestId && (
-                    <p className="text-[9px] text-muted-foreground font-mono">Reference SR: {log.serviceRequestId}</p>
-                  )}
-                </CardContent>
-              </Card>
-            ))
+                          {log.stepsTaken && log.stepsTaken.length > 0 && (
+                            <div className="bg-muted/30 p-2 rounded text-[11px] space-y-1">
+                              {log.stepsTaken.map((step, i) => (
+                                <div key={i} className="flex gap-2 text-foreground/80">
+                                  <span className="text-muted-foreground font-mono">{i + 1}.</span>
+                                  <span>{step}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
           )}
         </div>
       </div>
