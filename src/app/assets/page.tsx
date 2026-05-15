@@ -103,7 +103,7 @@ export default function AssetsPage() {
         <div className="flex gap-1">
           <Link href="/templates">
             <Button size="sm" variant="outline" className="h-7 text-[10px] uppercase font-bold px-2 rounded-none">
-              <BookOpen className="h-3 w-3 mr-1" /> Templates
+              <BookOpen className="h-3 w-3 mr-1" /> PUBS
             </Button>
           </Link>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -118,10 +118,10 @@ export default function AssetsPage() {
               </DialogHeader>
               <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
                 <div className="grid gap-1">
-                  <Label className="text-[10px] uppercase font-bold text-muted-foreground">Select SL-3 Template</Label>
+                  <Label className="text-[10px] uppercase font-bold text-muted-foreground">Select Publication (PUBS)</Label>
                   <Select onValueChange={handleTemplateSelect}>
                     <SelectTrigger className="rounded-none">
-                      <SelectValue placeholder="Pre-fill from template..." />
+                      <SelectValue placeholder="Pre-fill from PUBS..." />
                     </SelectTrigger>
                     <SelectContent>
                       {templates?.map(t => (

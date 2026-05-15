@@ -1,11 +1,11 @@
 # MaintainMate (USMC 28XX Tactical Journal)
 
-MaintainMate is a local-first, AI-powered technical journal designed specifically for the USMC 28XX (Ground Electronics Maintenance) community. It provides a rugged, utilitarian interface for tracking serialized equipment (Gear), managing SL-3 templates, and logging maintenance activities (ERO) with AI-driven diagnostic support.
+MaintainMate is a local-first, AI-powered technical journal designed specifically for the USMC 28XX (Ground Electronics Maintenance) community. It provides a rugged, utilitarian interface for tracking serialized equipment (Gear), managing PUBS (Technical Publications), and logging maintenance activities (ERO) with AI-driven diagnostic support.
 
 ## Features
 
 - **Tactical Gear Inventory**: Track nomenclature, serial numbers, NSNs, and TAMCNs.
-- **SL-3 Technical Templates**: Create blueprints for equipment classes with built-in technical specs and component breakdowns.
+- **PUBS Technical Templates**: Create blueprints for equipment classes with built-in technical specs and component breakdowns.
 - **AI-Powered Fault Analysis**: Leverage Genkit and Gemini to analyze faults against historical data and technical manual specs.
 - **Grouped ERO History**: Maintenance logs are organized by Service Request (SR#) for lifecycle tracking.
 - **Local-First Architecture**: Built with Dexie.js for high performance and offline reliability in tactical environments.

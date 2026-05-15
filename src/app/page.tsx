@@ -29,9 +29,6 @@ export default function Home() {
           MAINTAIN-MATE
         </h1>
         <div className="flex justify-between items-center mt-1">
-          <p className="text-[10px] font-bold text-muted-foreground tracking-widest uppercase">
-            Unit Maintenance Management System // 28XX Community
-          </p>
           <Badge variant="outline" className="text-[9px] border-primary text-primary font-mono">
             SECURE LOCAL JOURNAL
           </Badge>

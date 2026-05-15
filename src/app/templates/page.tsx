@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from 'react';
@@ -74,18 +73,18 @@ export default function TemplatesPage() {
       });
       setIsAddOpen(false);
       setFormData({ nomenclature: '', nsn: '', tamcn: '', technicalKnowledge: '', components: [] });
-      toast({ title: "Template Saved", description: "Technical standard added to library." });
+      toast({ title: "Publication Saved", description: "Technical standard added to PUBS library." });
     } catch (e) {
-      toast({ title: "Error", description: "Failed to save template.", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to save publication.", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm("Delete this technical template?")) {
+    if (confirm("Delete this technical publication?")) {
       await db.templates.delete(id);
-      toast({ title: "Deleted", description: "Template removed from system." });
+      toast({ title: "Deleted", description: "Publication removed from system." });
     }
   };
 
@@ -94,15 +93,15 @@ export default function TemplatesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
           <BookOpen className="h-6 w-6" />
-          Asset Templates
+          Technical PUBS
         </h1>
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="h-4 w-4 mr-1" /> New Template</Button>
+            <Button size="sm"><Plus className="h-4 w-4 mr-1" /> New Publication</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Create Asset Template</DialogTitle>
+              <DialogTitle>Create Technical Publication (PUBS)</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4 pr-1">
               <div className="grid gap-2">
@@ -166,7 +165,7 @@ export default function TemplatesPage() {
                     />
                   </div>
                   <Button variant="secondary" size="sm" onClick={handleAddComponent} className="w-full">
-                    <Plus className="h-3 w-3 mr-1" /> Add Component to Template
+                    <Plus className="h-3 w-3 mr-1" /> Add Component to Publication
                   </Button>
                 </div>
 
@@ -200,7 +199,7 @@ export default function TemplatesPage() {
             </div>
             <DialogFooter>
               <Button onClick={handleAddTemplate} className="w-full" disabled={isSaving}>
-                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Save Template"}
+                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Save Publication"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -210,7 +209,7 @@ export default function TemplatesPage() {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input 
-          placeholder="Search nomenclatures..." 
+          placeholder="Search publications..." 
           className="pl-10"
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
@@ -220,7 +219,7 @@ export default function TemplatesPage() {
       <div className="grid gap-3">
         {!templates?.length ? (
           <div className="text-center py-20 bg-white rounded-xl border border-dashed">
-            <p className="text-sm text-muted-foreground">No templates defined.</p>
+            <p className="text-sm text-muted-foreground">No publications defined.</p>
           </div>
         ) : (
           templates.map(t => (
