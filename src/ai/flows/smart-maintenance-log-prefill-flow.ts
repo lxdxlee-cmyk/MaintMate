@@ -1,30 +1,30 @@
+
 'use server';
 /**
- * @fileOverview A Genkit flow that suggests common maintenance details (repair actions, parts, outcome) based on a fault description and equipment type.
+ * @fileOverview A Genkit flow that suggests maintenance activity details (steps, measurements, status) based on equipment context.
  *
  * - suggestMaintenancePrefill - A function that handles the prefilling suggestions process.
- * - SuggestMaintenancePrefillInput - The input type for the suggestMaintenancePrefill function.
- * - SuggestMaintenancePrefillOutput - The return type for the suggestMaintenancePrefill function.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const SuggestMaintenancePrefillInputSchema = z.object({
-  faultDescription: z.string().describe('A brief description of the observed fault.'),
-  equipmentType: z.string().describe('The type of equipment being maintained.'),
+  description: z.string().describe('A brief description of the current task or observed issue.'),
+  nomenclature: z.string().describe('The formal nomenclature of the equipment.'),
 });
 export type SuggestMaintenancePrefillInput = z.infer<
   typeof SuggestMaintenancePrefillInputSchema
 >;
 
 const SuggestMaintenancePrefillOutputSchema = z.object({
-  repairActions: z
+  suggestedSteps: z
     .array(z.string())
-    .describe('Suggested common repair actions for the described fault and equipment type.'),
-  partsUsed:
-    z.array(z.string()).describe('Suggested common parts that might be used for this repair.'),
-  outcomeDescription: z.string().describe('A suggested outcome description for the repair.'),
+    .describe('Step-by-step troubleshooting or maintenance actions.'),
+  recommendedMeasurements: z
+    .string()
+    .describe('Common values or tolerances to check for this equipment type.'),
+  likelyStatus: z.enum(['Ongoing', 'Awaiting Parts', 'Resolved']).describe('The most likely status of the task.'),
 });
 export type SuggestMaintenancePrefillOutput = z.infer<
   typeof SuggestMaintenancePrefillOutputSchema
@@ -40,14 +40,16 @@ const prefillPrompt = ai.definePrompt({
   name: 'smartMaintenanceLogPrefillPrompt',
   input: {schema: SuggestMaintenancePrefillInputSchema},
   output: {schema: SuggestMaintenancePrefillOutputSchema},
-  prompt: `You are an expert maintenance technician tasked with assisting a maintainer in quickly documenting maintenance.
-Based on the provided fault description and equipment type, suggest common repair actions, typical parts that might be used, and a concise outcome description.
-These suggestions should be practical and relevant to a real-world maintenance scenario for the given equipment.
+  prompt: `You are an expert technical advisor for complex machinery.
+A technician is working on: {{{nomenclature}}}.
+They describe their current activity as: {{{description}}}.
 
-Equipment Type: {{{equipmentType}}}
-Fault Description: {{{faultDescription}}}
+Suggest:
+1. A logical sequence of troubleshooting steps or maintenance actions.
+2. Specific technical measurements, tolerances, or readings they should record (e.g., "Check voltage at J1, expect 24VDC +/- 0.5").
+3. Based on the complexity, suggest if this is likely "Ongoing" or can be "Resolved" immediately.
 
-Provide your suggestions in a JSON object with the following structure. Do not include any additional text or formatting outside of the JSON.`,
+Provide your suggestions in a JSON object.`,
 });
 
 const smartMaintenanceLogPrefillFlow = ai.defineFlow(
@@ -57,7 +59,7 @@ const smartMaintenanceLogPrefillFlow = ai.defineFlow(
     outputSchema: SuggestMaintenancePrefillOutputSchema,
   },
   async input => {
-    const {output} = await prefillPrompt(input);
+    const {output} = await prompt(input);
     return output!;
   }
 );
