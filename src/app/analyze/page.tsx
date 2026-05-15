@@ -61,6 +61,18 @@ export default function AnalyzePage() {
             knownFaults: c.knownFaults
           }))
         })),
+        connections: (template.connections || []).map(conn => {
+          const src = template.assemblies.flatMap(a => a.components).find(c => c.id === conn.sourceComponentId);
+          const dest = template.assemblies.flatMap(a => a.components).find(c => c.id === conn.destComponentId);
+          return {
+            type: conn.type,
+            connectorType: conn.connectorType,
+            sourceComponent: src?.name || 'Unknown',
+            destComponent: dest?.name || 'Unknown',
+            cableId: conn.cableId,
+            notes: conn.notes
+          };
+        }),
         currentFaultDescription: currentFault.trim(),
         historicalMaintenanceLogs: historicalLogs.map(l => ({
           faultObserved: l.activityDescription,

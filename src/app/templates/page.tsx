@@ -41,20 +41,20 @@ function TemplatesContent() {
     tamcn: '',
     technicalKnowledge: '',
     assemblies: [],
+    connections: [],
   });
 
   const [newAssembly, setNewAssembly] = useState<Partial<TechnicalAssembly>>({
     name: '',
     description: '',
     components: [],
-    connections: []
   });
 
   const handleAddAssembly = () => {
     if (!newAssembly.name?.trim()) return;
     setFormData({
       ...formData,
-      assemblies: [...(formData.assemblies || []), { ...newAssembly, components: [], connections: [] } as TechnicalAssembly]
+      assemblies: [...(formData.assemblies || []), { ...newAssembly, components: [] } as TechnicalAssembly]
     });
     setNewAssembly({ name: '', description: '' });
   };
@@ -80,16 +80,23 @@ function TemplatesContent() {
     setFormData({ ...formData, assemblies: newAssemblies });
   };
 
-  const addConnectionToAssembly = (asmIndex: number) => {
+  const addGlobalConnection = () => {
     const conn: TechnicalConnection = {
       id: crypto.randomUUID(),
       type: 'Ethernet',
       sourceComponentId: '',
       destComponentId: '',
     };
-    const newAssemblies = [...(formData.assemblies || [])];
-    newAssemblies[asmIndex].connections.push(conn);
-    setFormData({ ...formData, assemblies: newAssemblies });
+    setFormData({
+      ...formData,
+      connections: [...(formData.connections || []), conn]
+    });
+  };
+
+  const removeGlobalConnection = (connIdx: number) => {
+    const updated = [...(formData.connections || [])];
+    updated.splice(connIdx, 1);
+    setFormData({ ...formData, connections: updated });
   };
 
   const handleOpenEdit = (template: AssetTemplate) => {
@@ -100,6 +107,7 @@ function TemplatesContent() {
       tamcn: template.tamcn,
       technicalKnowledge: template.technicalKnowledge,
       assemblies: JSON.parse(JSON.stringify(template.assemblies || [])),
+      connections: JSON.parse(JSON.stringify(template.connections || [])),
     });
     setIsEditOpen(true);
   };
@@ -118,6 +126,7 @@ function TemplatesContent() {
         tamcn: (formData.tamcn || '').trim(),
         technicalKnowledge: (formData.technicalKnowledge || '').trim(),
         assemblies: formData.assemblies || [],
+        connections: formData.connections || [],
         createdAt: id ? undefined : Date.now(),
       };
 
@@ -129,7 +138,7 @@ function TemplatesContent() {
         setIsAddOpen(false);
       }
       
-      setFormData({ nomenclature: '', nsn: '', tamcn: '', technicalKnowledge: '', assemblies: [] });
+      setFormData({ nomenclature: '', nsn: '', tamcn: '', technicalKnowledge: '', assemblies: [], connections: [] });
       toast({ title: "Success", description: "Technical record saved." });
     } catch (e) {
       toast({ title: "Error", description: "Failed to save publication.", variant: "destructive" });
@@ -170,7 +179,8 @@ function TemplatesContent() {
                 handleAddAssembly={handleAddAssembly} 
                 removeAssembly={removeAssembly} 
                 addComponentToAssembly={addComponentToAssembly}
-                addConnectionToAssembly={addConnectionToAssembly}
+                addGlobalConnection={addGlobalConnection}
+                removeGlobalConnection={removeGlobalConnection}
               />
               <DialogFooter>
                 <Button onClick={() => handleSave()} className="w-full" disabled={isSaving}>
@@ -193,7 +203,8 @@ function TemplatesContent() {
             handleAddAssembly={handleAddAssembly} 
             removeAssembly={removeAssembly} 
             addComponentToAssembly={addComponentToAssembly}
-            addConnectionToAssembly={addConnectionToAssembly}
+            addGlobalConnection={addGlobalConnection}
+            removeGlobalConnection={removeGlobalConnection}
           />
           <DialogFooter>
             <Button onClick={() => handleSave(editingId!)} className="w-full" disabled={isSaving}>
@@ -222,6 +233,9 @@ function TemplatesContent() {
                    <span className="text-[10px] bg-primary/10 text-primary px-1.5 rounded font-black uppercase">
                      {t.assemblies?.length || 0} Assemblies
                    </span>
+                   <span className="text-[10px] bg-accent/10 text-accent px-1.5 rounded font-black uppercase">
+                     {t.connections?.length || 0} Signal Paths
+                   </span>
                 </div>
               </div>
               <div className="flex items-center gap-1">
@@ -236,7 +250,20 @@ function TemplatesContent() {
   );
 }
 
-function PubForm({ formData, setFormData, newAssembly, setNewAssembly, handleAddAssembly, removeAssembly, addComponentToAssembly, addConnectionToAssembly }: any) {
+function PubForm({ 
+  formData, 
+  setFormData, 
+  newAssembly, 
+  setNewAssembly, 
+  handleAddAssembly, 
+  removeAssembly, 
+  addComponentToAssembly, 
+  addGlobalConnection,
+  removeGlobalConnection
+}: any) {
+  
+  const allComponents = (formData.assemblies || []).flatMap((asm: TechnicalAssembly) => asm.components);
+
   return (
     <div className="grid gap-4 py-4 pr-1">
       <div className="grid grid-cols-2 gap-4">
@@ -258,7 +285,7 @@ function PubForm({ formData, setFormData, newAssembly, setNewAssembly, handleAdd
 
       <div className="space-y-4">
         <Label className="text-[11px] uppercase font-black text-primary flex items-center gap-2">
-          <Layers className="h-4 w-4" /> System Hierarchy & Topology
+          <Layers className="h-4 w-4" /> System Hierarchy
         </Label>
         
         <div className="grid gap-2 p-3 bg-muted/20 border-2 border-dashed rounded-lg">
@@ -281,7 +308,7 @@ function PubForm({ formData, setFormData, newAssembly, setNewAssembly, handleAdd
                 <div className="flex justify-between items-center">
                   <div className="space-y-0.5">
                     <p className="text-[10px] text-muted-foreground uppercase font-black">Assembly Definition</p>
-                    <p className="text-[9px] text-muted-foreground">Manage components and connections for this section.</p>
+                    <p className="text-[9px] text-muted-foreground">Manage components for this subsystem.</p>
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => removeAssembly(idx)} className="h-6 text-destructive text-[9px] uppercase font-bold p-0">Remove Assembly</Button>
                 </div>
@@ -353,125 +380,128 @@ function PubForm({ formData, setFormData, newAssembly, setNewAssembly, handleAdd
                     </Button>
                   </div>
                 </div>
-
-                <Separator />
-
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-primary">
-                    <Cable className="h-3 w-3" />
-                    <Label className="text-[10px] uppercase font-black">Connection Map (Wires/Signal)</Label>
-                  </div>
-                  <div className="grid gap-3">
-                    {asm.connections?.map((conn: TechnicalConnection, connIdx: number) => (
-                      <div key={conn.id} className="p-3 border rounded-lg bg-primary/5 space-y-3">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <Label className="text-[8px] uppercase font-bold">Source Component</Label>
-                            <Select 
-                              value={conn.sourceComponentId} 
-                              onValueChange={(val) => {
-                                const updated = [...formData.assemblies];
-                                updated[idx].connections[connIdx].sourceComponentId = val;
-                                setFormData({...formData, assemblies: updated});
-                              }}
-                            >
-                              <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select..." /></SelectTrigger>
-                              <SelectContent>
-                                {asm.components.map(c => <SelectItem key={c.id} value={c.id} className="text-xs">{c.name}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[8px] uppercase font-bold">Dest Component</Label>
-                            <Select 
-                              value={conn.destComponentId} 
-                              onValueChange={(val) => {
-                                const updated = [...formData.assemblies];
-                                updated[idx].connections[connIdx].destComponentId = val;
-                                setFormData({...formData, assemblies: updated});
-                              }}
-                            >
-                              <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select..." /></SelectTrigger>
-                              <SelectContent>
-                                {asm.components.map(c => <SelectItem key={c.id} value={c.id} className="text-xs">{c.name}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                           <div className="space-y-1">
-                             <Label className="text-[8px] uppercase font-bold">Type</Label>
-                             <Select 
-                               value={conn.type} 
-                               onValueChange={(val) => {
-                                 const updated = [...formData.assemblies];
-                                 updated[idx].connections[connIdx].type = val as any;
-                                 setFormData({...formData, assemblies: updated});
-                               }}
-                             >
-                               <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
-                               <SelectContent>
-                                 {['Ethernet', 'Serial', 'RF', 'Power', 'Grounding', 'Control', 'Signal', 'Other'].map(t => <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>)}
-                               </SelectContent>
-                             </Select>
-                           </div>
-                           <div className="space-y-1">
-                             <Label className="text-[8px] uppercase font-bold">Connector</Label>
-                             <Input 
-                               placeholder="e.g. RJ45" 
-                               className="h-7 text-[10px]" 
-                               value={conn.connectorType || ''}
-                               onChange={(e) => {
-                                 const updated = [...formData.assemblies];
-                                 updated[idx].connections[connIdx].connectorType = e.target.value;
-                                 setFormData({...formData, assemblies: updated});
-                               }}
-                             />
-                           </div>
-                           <div className="space-y-1">
-                             <Label className="text-[8px] uppercase font-bold">Cable ID</Label>
-                             <Input 
-                               placeholder="W001" 
-                               className="h-7 text-[10px] font-mono" 
-                               value={conn.cableId || ''}
-                               onChange={(e) => {
-                                 const updated = [...formData.assemblies];
-                                 updated[idx].connections[connIdx].cableId = e.target.value;
-                                 setFormData({...formData, assemblies: updated});
-                               }}
-                             />
-                           </div>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <Input 
-                             placeholder="Connection notes..." 
-                             className="h-7 text-[9px] flex-1 mr-2" 
-                             value={conn.notes || ''}
-                             onChange={(e) => {
-                               const updated = [...formData.assemblies];
-                               updated[idx].connections[connIdx].notes = e.target.value;
-                               setFormData({...formData, assemblies: updated});
-                             }}
-                          />
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => {
-                            const updated = [...formData.assemblies];
-                            updated[idx].connections.splice(connIdx, 1);
-                            setFormData({...formData, assemblies: updated});
-                          }}>
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                    <Button variant="outline" className="w-full h-8 text-[10px] uppercase font-bold border-dashed text-primary" onClick={() => addConnectionToAssembly(idx)}>
-                      <Plus className="h-3 w-3 mr-1" /> Add Signal/Wire Path
-                    </Button>
-                  </div>
-                </div>
               </AccordionContent>
             </AccordionItem>
           ))}
         </Accordion>
+      </div>
+
+      <Separator />
+
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label className="text-[11px] uppercase font-black text-primary flex items-center gap-2">
+            <Cable className="h-4 w-4" /> System Topology (Cross-Assembly Paths)
+          </Label>
+          <Button variant="outline" size="sm" onClick={addGlobalConnection} className="h-7 text-[9px] uppercase font-bold">
+            <Plus className="h-3 w-3 mr-1" /> Add Wire/Signal Path
+          </Button>
+        </div>
+        
+        <div className="grid gap-3">
+          {formData.connections?.map((conn: TechnicalConnection, connIdx: number) => (
+            <div key={conn.id} className="p-3 border-2 border-primary/20 rounded-lg bg-primary/5 space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[8px] uppercase font-bold">Source Component</Label>
+                  <Select 
+                    value={conn.sourceComponentId} 
+                    onValueChange={(val) => {
+                      const updated = [...(formData.connections || [])];
+                      updated[connIdx].sourceComponentId = val;
+                      setFormData({...formData, connections: updated});
+                    }}
+                  >
+                    <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select..." /></SelectTrigger>
+                    <SelectContent>
+                      {allComponents.map((c: TechnicalComponent) => <SelectItem key={c.id} value={c.id} className="text-xs">{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[8px] uppercase font-bold">Destination Component</Label>
+                  <Select 
+                    value={conn.destComponentId} 
+                    onValueChange={(val) => {
+                      const updated = [...(formData.connections || [])];
+                      updated[connIdx].destComponentId = val;
+                      setFormData({...formData, connections: updated});
+                    }}
+                  >
+                    <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select..." /></SelectTrigger>
+                    <SelectContent>
+                      {allComponents.map((c: TechnicalComponent) => <SelectItem key={c.id} value={c.id} className="text-xs">{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                 <div className="space-y-1">
+                   <Label className="text-[8px] uppercase font-bold">Link Type</Label>
+                   <Select 
+                     value={conn.type} 
+                     onValueChange={(val) => {
+                       const updated = [...(formData.connections || [])];
+                       updated[connIdx].type = val as any;
+                       setFormData({...formData, connections: updated});
+                     }}
+                   >
+                     <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                     <SelectContent>
+                       {['Ethernet', 'Serial', 'RF', 'Power', 'Grounding', 'Control', 'Signal', 'Other'].map(t => <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>)}
+                     </SelectContent>
+                   </Select>
+                 </div>
+                 <div className="space-y-1">
+                   <Label className="text-[8px] uppercase font-bold">Connector</Label>
+                   <Input 
+                     placeholder="e.g. RJ45" 
+                     className="h-7 text-[10px]" 
+                     value={conn.connectorType || ''}
+                     onChange={(e) => {
+                       const updated = [...(formData.connections || [])];
+                       updated[connIdx].connectorType = e.target.value;
+                       setFormData({...formData, connections: updated});
+                     }}
+                   />
+                 </div>
+                 <div className="space-y-1">
+                   <Label className="text-[8px] uppercase font-bold">Cable/Wire ID</Label>
+                   <Input 
+                     placeholder="W001" 
+                     className="h-7 text-[10px] font-mono" 
+                     value={conn.cableId || ''}
+                     onChange={(e) => {
+                       const updated = [...(formData.connections || [])];
+                       updated[connIdx].cableId = e.target.value;
+                       setFormData({...formData, connections: updated});
+                     }}
+                   />
+                 </div>
+              </div>
+              <div className="flex justify-between items-center">
+                <Input 
+                   placeholder="Route notes (e.g. Signal strength -10dBm)" 
+                   className="h-7 text-[9px] flex-1 mr-2" 
+                   value={conn.notes || ''}
+                   onChange={(e) => {
+                     const updated = [...(formData.connections || [])];
+                     updated[connIdx].notes = e.target.value;
+                     setFormData({...formData, connections: updated});
+                   }}
+                />
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeGlobalConnection(connIdx)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ))}
+          {(!formData.connections || formData.connections.length === 0) && (
+            <div className="text-center py-4 bg-muted/10 border border-dashed rounded text-[10px] text-muted-foreground uppercase font-bold">
+              No cross-assembly wiring defined.
+            </div>
+          )}
+        </div>
       </div>
 
       <Separator />

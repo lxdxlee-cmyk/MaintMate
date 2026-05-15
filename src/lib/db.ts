@@ -45,7 +45,6 @@ export interface TechnicalAssembly {
   name: string;
   description?: string;
   components: TechnicalComponent[];
-  connections: TechnicalConnection[];
 }
 
 /**
@@ -58,6 +57,7 @@ export interface AssetTemplate {
   tamcn: string;
   technicalKnowledge: string; // Freeform tribal knowledge/field notes
   assemblies: TechnicalAssembly[];
+  connections: TechnicalConnection[]; // Moved to template level for cross-assembly mapping
   createdAt: number;
 }
 
@@ -99,11 +99,39 @@ export class MaintainMateDB extends Dexie {
 
   constructor() {
     super('MaintainMateDB');
-    // Version 9: Added maintenanceLocation field
+    
+    // Version 9: Initial structure
     this.version(9).stores({
       assets: '++id, templateId, serialNumber, owner, isInMaintenance, createdAt',
       logs: '++id, assetId, technician, status, timestamp, serviceRequestId',
       templates: '++id, nomenclature, nsn, tamcn'
+    });
+
+    // Version 10: Move connections from assembly to template level
+    this.version(10).stores({
+      assets: '++id, templateId, serialNumber, owner, isInMaintenance, createdAt',
+      logs: '++id, assetId, technician, status, timestamp, serviceRequestId',
+      templates: '++id, nomenclature, nsn, tamcn'
+    }).upgrade(async (trans) => {
+      // Migration: Move existing assembly-level connections to the template level
+      const templates = await trans.table('templates').toArray();
+      for (const template of templates) {
+        const globalConnections: TechnicalConnection[] = template.connections || [];
+        
+        if (template.assemblies) {
+          template.assemblies.forEach((asm: any) => {
+            if (asm.connections && Array.isArray(asm.connections)) {
+              globalConnections.push(...asm.connections);
+              delete asm.connections;
+            }
+          });
+        }
+        
+        await trans.table('templates').update(template.id, {
+          connections: globalConnections,
+          assemblies: template.assemblies
+        });
+      }
     });
   }
 }

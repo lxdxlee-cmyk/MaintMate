@@ -32,7 +32,6 @@ const AssemblySchema = z.object({
   name: z.string(),
   description: z.string().optional(),
   components: z.array(ComponentSpecSchema),
-  connections: z.array(ConnectionSchema).optional(),
 });
 
 const MaintenanceLogEntrySchema = z.object({
@@ -48,6 +47,7 @@ const AIPoweredFaultAnalysisInputSchema = z.object({
   tamcn: z.string().optional(),
   technicalKnowledge: z.string().optional().describe('Freeform field notes or tribal knowledge.'),
   assemblies: z.array(AssemblySchema).optional().describe('Hierarchical technical structure.'),
+  connections: z.array(ConnectionSchema).optional().describe('System-wide wiring and signal paths.'),
   currentFaultDescription: z.string().describe('A detailed description of the fault currently observed.'),
   historicalMaintenanceLogs: z.array(MaintenanceLogEntrySchema).describe('Past maintenance history.'),
 });
@@ -71,18 +71,20 @@ const aiPoweredFaultAnalysisPrompt = ai.definePrompt({
 Analyze the fault for: {{{equipmentType}}} (NSN: {{{nsn}}}).
 
 Technical Topology & Specs:
+Assemblies:
 {{#each assemblies}}
-Assembly: {{{this.name}}}
-Components:
-{{#each this.components}}
-- {{{this.name}}} ({{{this.purpose}}})
-  Specs: {{{this.measurements}}}
-  Known Faults: {{#each this.knownFaults}}{{{this.symptom}}} -> {{{this.fix}}}; {{/each}}
+- Assembly: {{{this.name}}}
+  Components:
+  {{#each this.components}}
+  - {{{this.name}}} ({{{this.purpose}}})
+    Specs: {{{this.measurements}}}
+    Known Faults: {{#each this.knownFaults}}{{{this.symptom}}} -> {{{this.fix}}}; {{/each}}
+  {{/each}}
 {{/each}}
-Connections (Wire/Signal Paths):
-{{#each this.connections}}
+
+System-Wide Signal Paths / Connections:
+{{#each connections}}
 - {{{this.type}}} [{{{this.cableId}}}] : {{{this.sourceComponent}}} -> {{{this.destComponent}}} ({{{this.connectorType}}}) {{{this.notes}}}
-{{/each}}
 {{/each}}
 
 Field Knowledge (Tribal): {{{technicalKnowledge}}}

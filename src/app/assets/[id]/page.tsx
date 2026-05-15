@@ -7,7 +7,7 @@ import { db, type MaintenanceLog, type EquipmentAsset, type AssetTemplate, type 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, ChevronLeft, User, Sparkles, Loader2, Activity, Layers, Settings2, FolderOpen, FileDown, BookOpen, Network, Zap, ShieldAlert, ClipboardList, Cable, Target, MapPin } from 'lucide-react';
+import { Plus, ChevronLeft, User, Sparkles, Loader2, Layers, Settings2, FolderOpen, FileDown, BookOpen, Network, Zap, ShieldAlert, ClipboardList, Cable, Target, MapPin } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -53,6 +53,11 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
     }, {} as Record<string, MaintenanceLog[]>);
   }, [logs]);
 
+  const allComponents = useMemo(() => {
+    if (!template?.assemblies) return [];
+    return template.assemblies.flatMap(asm => asm.components);
+  }, [template]);
+
   const [logFormData, setLogFormData] = useState<Partial<MaintenanceLog>>({
     technician: '',
     activityDescription: '',
@@ -94,7 +99,6 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
     
     setIsAiLoading(true);
     try {
-      const allComponents = (template.assemblies || []).flatMap(asm => asm.components);
       const result = await suggestMaintenancePrefill({
         description: logFormData.activityDescription,
         nomenclature: template.nomenclature,
@@ -295,63 +299,71 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
             )}
 
             <Accordion type="single" collapsible className="col-span-2 space-y-2 mt-2">
-              {template?.assemblies?.map((asm, idx) => (
-                <AccordionItem key={idx} value={`asm-${idx}`} className="border-2 rounded-lg px-3 bg-muted/20">
-                  <AccordionTrigger className="hover:no-underline py-2.5 text-[10px] font-black uppercase tracking-tight">
-                    <span className="flex items-center gap-2"><Layers className="h-3.5 w-3.5" /> {asm.name}</span>
-                  </AccordionTrigger>
-                  <AccordionContent className="space-y-4 pt-1 pb-4">
-                    <div className="space-y-2">
-                      <Label className="text-[9px] uppercase font-black text-muted-foreground flex items-center gap-1.5"><Target className="h-3 w-3" /> Sub-Components</Label>
-                      {asm.components.map(comp => (
-                        <div key={comp.id} className="bg-white p-2.5 rounded border-2 border-border/50">
-                          <div className="flex justify-between items-start">
-                            <p className="font-black text-[11px] uppercase tracking-tight">{comp.name}</p>
-                            {asset.componentSerials?.[comp.id] && (
-                              <Badge variant="outline" className="text-[9px] h-4 px-1.5 font-mono bg-primary/5">{asset.componentSerials[comp.id]}</Badge>
+              <AccordionItem value="system-hierarchy" className="border-2 rounded-lg px-3 bg-muted/20">
+                <AccordionTrigger className="hover:no-underline py-2.5 text-[10px] font-black uppercase tracking-tight">
+                  <span className="flex items-center gap-2"><Layers className="h-3.5 w-3.5" /> System Hierarchy</span>
+                </AccordionTrigger>
+                <AccordionContent className="space-y-4 pt-1 pb-4">
+                  {template?.assemblies?.map((asm, idx) => (
+                    <div key={idx} className="space-y-2 mb-4 last:mb-0">
+                      <Label className="text-[9px] uppercase font-black text-primary flex items-center gap-1.5"><Target className="h-3 w-3" /> {asm.name}</Label>
+                      <div className="grid gap-2">
+                        {asm.components.map(comp => (
+                          <div key={comp.id} className="bg-white p-2.5 rounded border-2 border-border/50">
+                            <div className="flex justify-between items-start">
+                              <p className="font-black text-[11px] uppercase tracking-tight">{comp.name}</p>
+                              {asset.componentSerials?.[comp.id] && (
+                                <Badge variant="outline" className="text-[9px] h-4 px-1.5 font-mono bg-primary/5">{asset.componentSerials[comp.id]}</Badge>
+                              )}
+                            </div>
+                            {comp.purpose && <p className="text-[9px] text-muted-foreground mt-0.5 font-medium">{comp.purpose}</p>}
+                            {comp.expectedMeasurements && comp.expectedMeasurements.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                {comp.expectedMeasurements.map((m, mIdx) => (
+                                  <span key={mIdx} className="text-[9px] bg-accent/10 px-1.5 py-0.5 rounded-sm text-accent font-mono font-bold">{m.name}: {m.value}</span>
+                                ))}
+                              </div>
                             )}
                           </div>
-                          {comp.purpose && <p className="text-[9px] text-muted-foreground mt-0.5 font-medium">{comp.purpose}</p>}
-                          {comp.expectedMeasurements && comp.expectedMeasurements.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-1">
-                              {comp.expectedMeasurements.map((m, mIdx) => (
-                                <span key={mIdx} className="text-[9px] bg-accent/10 px-1.5 py-0.5 rounded-sm text-accent font-mono font-bold">{m.name}: {m.value}</span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-
-                    {asm.connections && asm.connections.length > 0 && (
-                      <div className="space-y-2">
-                         <Label className="text-[9px] uppercase font-black text-muted-foreground flex items-center gap-1.5"><Cable className="h-3 w-3" /> Topology & Signal Paths</Label>
-                         <div className="grid gap-2">
-                           {asm.connections.map(conn => {
-                             const source = asm.components.find(c => c.id === conn.sourceComponentId);
-                             const dest = asm.components.find(c => c.id === conn.destComponentId);
-                             return (
-                               <div key={conn.id} className="p-2 bg-white rounded border border-primary/20 text-[9px] space-y-1">
-                                 <div className="flex items-center justify-between font-bold">
-                                   <span className="uppercase text-primary">{source?.name || 'SRC'}</span>
-                                   <Network className="h-2.5 w-2.5 text-muted-foreground" />
-                                   <span className="uppercase text-primary">{dest?.name || 'DEST'}</span>
-                                 </div>
-                                 <div className="flex gap-2 text-muted-foreground font-mono uppercase">
-                                   <span className="bg-muted px-1 rounded">{conn.type}</span>
-                                   {conn.connectorType && <span>CON: {conn.connectorType}</span>}
-                                   {conn.cableId && <span>CABLE: {conn.cableId}</span>}
-                                 </div>
-                                 {conn.notes && <p className="italic text-muted-foreground mt-0.5 truncate">{conn.notes}</p>}
-                               </div>
-                             );
-                           })}
-                         </div>
+                        ))}
                       </div>
-                    )}
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
+                    </div>
+                  ))}
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="system-topology" className="border-2 rounded-lg px-3 bg-muted/20">
+                <AccordionTrigger className="hover:no-underline py-2.5 text-[10px] font-black uppercase tracking-tight">
+                  <span className="flex items-center gap-2"><Cable className="h-3.5 w-3.5" /> Signal Paths / Topology</span>
+                </AccordionTrigger>
+                <AccordionContent className="space-y-4 pt-1 pb-4">
+                  {template?.connections && template.connections.length > 0 ? (
+                    <div className="grid gap-2">
+                      {template.connections.map(conn => {
+                        const source = allComponents.find(c => c.id === conn.sourceComponentId);
+                        const dest = allComponents.find(c => c.id === conn.destComponentId);
+                        return (
+                          <div key={conn.id} className="p-2 bg-white rounded border border-primary/20 text-[9px] space-y-1">
+                            <div className="flex items-center justify-between font-bold">
+                              <span className="uppercase text-primary">{source?.name || 'SRC'}</span>
+                              <Network className="h-2.5 w-2.5 text-muted-foreground" />
+                              <span className="uppercase text-primary">{dest?.name || 'DEST'}</span>
+                            </div>
+                            <div className="flex gap-2 text-muted-foreground font-mono uppercase">
+                              <span className="bg-muted px-1 rounded">{conn.type}</span>
+                              {conn.connectorType && <span>CON: {conn.connectorType}</span>}
+                              {conn.cableId && <span>CABLE: {conn.cableId}</span>}
+                            </div>
+                            {conn.notes && <p className="italic text-muted-foreground mt-0.5 truncate">{conn.notes}</p>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-muted-foreground italic text-center py-2">No cross-assembly routing defined in PUBS.</p>
+                  )}
+                </AccordionContent>
+              </AccordionItem>
             </Accordion>
           </CardContent>
         </Card>
