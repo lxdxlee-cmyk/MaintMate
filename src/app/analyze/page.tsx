@@ -22,7 +22,7 @@ export default function AnalyzePage() {
   const assetsData = useLiveQuery(async () => {
     const assets = await db.assets.toArray();
     return Promise.all(assets.map(async a => {
-      const template = await db.templates.get(a.templateId);
+      const template = a.templateId ? await db.templates.get(a.templateId) : undefined;
       return { ...a, template };
     }));
   });
@@ -40,7 +40,7 @@ export default function AnalyzePage() {
       const asset = await db.assets.get(parseInt(selectedAssetId));
       if (!asset) throw new Error("Serialized record not found.");
       
-      const template = await db.templates.get(asset.templateId);
+      const template = asset.templateId ? await db.templates.get(asset.templateId) : undefined;
       if (!template) throw new Error("Technical doctrine (PUBS) missing for this gear.");
 
       const historicalLogs = await db.logs

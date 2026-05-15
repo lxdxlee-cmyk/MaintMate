@@ -28,7 +28,7 @@ export default function AssetsPage() {
   const assetsData = useLiveQuery(async () => {
     const allAssets = await db.assets.toArray();
     const enriched = await Promise.all(allAssets.map(async a => {
-      const template = await db.templates.get(a.templateId);
+      const template = a.templateId ? await db.templates.get(a.templateId) : undefined;
       return { ...a, template };
     }));
 
@@ -149,7 +149,7 @@ export default function AssetsPage() {
                 {selectedTemplate?.components && selectedTemplate.components.length > 0 && (
                   <div className="space-y-3 pt-2">
                     <Separator />
-                    <Label className="text-[10px] uppercase font-bold text-primary">Sub-Component Serials (SL-3)</Label>
+                    <Label className="text-[10px] uppercase font-bold text-primary">Sub-Component Serials (PUBS)</Label>
                     {selectedTemplate.components.map((c, i) => (
                       <div key={i} className="grid gap-1">
                         <Label className="text-[9px] uppercase">{c.name}</Label>

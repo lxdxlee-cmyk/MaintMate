@@ -20,8 +20,8 @@ export default function LogsPage() {
     let logs = await db.logs.orderBy('timestamp').reverse().toArray();
     
     const enrichedLogs = await Promise.all(logs.map(async log => {
-      const asset = await db.assets.get(log.assetId);
-      const template = asset ? await db.templates.get(asset.templateId) : undefined;
+      const asset = log.assetId ? await db.assets.get(log.assetId) : undefined;
+      const template = asset?.templateId ? await db.templates.get(asset.templateId) : undefined;
       return { ...log, asset, template };
     }));
 
