@@ -1,7 +1,8 @@
 
 "use client"
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type AssetTemplate, type TemplateComponent } from '@/lib/db';
 import { Button } from '@/components/ui/button';
@@ -9,14 +10,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, BookOpen, Trash2, Search, Loader2, Layers, Edit, FileDown } from 'lucide-react';
+import { Plus, BookOpen, Trash2, Search, Loader2, Layers, Edit, FileDown, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { exportPubsCatalog } from '@/lib/pdf-export';
 
-export default function TemplatesPage() {
-  const [searchTerm, setSearchTerm] = useState('');
+function TemplatesContent() {
+  const searchParams = useSearchParams();
+  const initialSearch = searchParams.get('search') || '';
+  
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -360,6 +364,16 @@ export default function TemplatesPage() {
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
         />
+        {searchTerm && (
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6"
+            onClick={() => setSearchTerm('')}
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        )}
       </div>
 
       <div className="grid gap-3">
@@ -397,5 +411,13 @@ export default function TemplatesPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function TemplatesPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+      <TemplatesContent />
+    </Suspense>
   );
 }

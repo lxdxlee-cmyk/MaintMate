@@ -7,7 +7,7 @@ import { db, type MaintenanceLog, type EquipmentAsset, type AssetTemplate } from
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, ChevronLeft, User, Sparkles, Loader2, Activity, Layers, Settings2, FolderOpen, FileDown } from 'lucide-react';
+import { Plus, ChevronLeft, User, Sparkles, Loader2, Activity, Layers, Settings2, FolderOpen, FileDown, ExternalLink, BookOpen } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -256,7 +256,16 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
       <div className="space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold text-primary">{template?.nomenclature || 'SERIALIZED UNIT'}</h1>
+            <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
+              {template?.nomenclature || 'SERIALIZED UNIT'}
+              {template && (
+                <Link href={`/templates?search=${template.nomenclature}`}>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary" title="View Technical Publication">
+                    <BookOpen className="h-4 w-4" />
+                  </Button>
+                </Link>
+              )}
+            </h1>
             <p className="text-sm font-mono text-muted-foreground uppercase tracking-widest">SN: {asset.serialNumber}</p>
           </div>
           <Badge variant={asset.isInMaintenance ? "destructive" : "secondary"}>
@@ -284,8 +293,11 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
             </div>
             {template?.components && template.components.length > 0 && (
               <div className="col-span-2 pt-2 border-t mt-1">
-                <p className="text-muted-foreground uppercase font-bold tracking-tighter mb-2 flex items-center gap-1">
-                  <Layers className="h-3 w-3" /> Technical Doctrine (PUBS Specs)
+                <p className="text-muted-foreground uppercase font-bold tracking-tighter mb-2 flex items-center justify-between">
+                  <span className="flex items-center gap-1"><Layers className="h-3 w-3" /> Technical Doctrine (PUBS Specs)</span>
+                  <Link href={`/templates?search=${template.nomenclature}`} className="text-accent hover:underline flex items-center gap-0.5 lowercase text-[10px]">
+                    view full doc <ExternalLink className="h-2 w-2" />
+                  </Link>
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   {template.components.map((c, i) => (
