@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -31,7 +32,7 @@
     --input: 40 15% 80%;
     --ring: 82 15% 30%;
     
-    --radius: 0.3rem;             /* Sharper, more rigid corners */
+    --radius: 0rem;               /* Strict military corners */
 
     /* Sidebar - Tactical Dark */
     --sidebar-background: 82 15% 15%;
@@ -50,13 +51,13 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-body;
+    @apply bg-background text-foreground font-body antialiased;
   }
   h1, h2, h3, h4, h5, h6 {
-    @apply font-bold tracking-tight uppercase;
+    @apply font-black tracking-tighter uppercase;
   }
   .font-mono {
-    @apply font-code text-[0.9em] tracking-tight;
+    @apply font-code text-[0.85em] tracking-tight;
   }
 }
 
@@ -65,19 +66,35 @@
 }
 
 .bottom-nav-blur {
-  backdrop-filter: blur(8px);
-  background-color: hsla(40, 20%, 92%, 0.85);
-  border-top: 2px solid hsl(var(--border));
+  backdrop-filter: blur(12px);
+  background-color: hsla(40, 20%, 92%, 0.9);
+  border-top: 2px solid hsl(var(--primary));
 }
 
 .tactical-card {
-  @apply border-2 border-border shadow-none rounded-none;
+  @apply border-2 border-primary shadow-none rounded-none;
 }
 
 .status-deadline {
-  @apply bg-destructive text-destructive-foreground font-bold animate-pulse;
+  @apply bg-destructive text-destructive-foreground font-black animate-pulse uppercase;
 }
 
 .status-ready {
-  @apply bg-primary text-primary-foreground font-bold;
+  @apply bg-primary text-primary-foreground font-black uppercase;
+}
+
+/* Custom Tactical Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-muted;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-primary;
+}
+
+/* Safe Area Insets for Mobile */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
 }
