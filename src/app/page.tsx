@@ -27,12 +27,13 @@ export default function Home() {
   });
   
   const stats = useLiveQuery(async () => {
-    const assetCount = await db.assets.count();
+    const assets = await db.assets.toArray();
+    const assetCount = assets.length;
     const logCount = await db.logs.count();
-    const deadlineCount = await db.assets.where('isInMaintenance').equals(1).count();
+    const deadlineCount = assets.filter(a => !!a.isInMaintenance).length;
     const fmcCount = assetCount - deadlineCount;
     return { assetCount, logCount, deadlineCount, fmcCount };
-  });
+  }, []);
 
   const handleMasterExport = async () => {
     if (!stats || stats.assetCount === 0) {
@@ -45,7 +46,6 @@ export default function Home() {
       
       const assets = await db.assets.toArray();
       const logs = await db.logs.toArray();
-      const templates = await db.templates.toArray();
       
       const enrichedAssets = await Promise.all(assets.map(async a => {
         const template = a.templateId ? await db.templates.get(a.templateId) : undefined;
@@ -57,6 +57,8 @@ export default function Home() {
         const template = asset?.templateId ? await db.templates.get(asset.templateId) : undefined;
         return { ...l, asset, template };
       }));
+
+      const templates = await db.templates.toArray();
 
       await exportFullUnitJournal({
         assets: enrichedAssets as any,
