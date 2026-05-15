@@ -7,7 +7,7 @@ import { db, type MaintenanceLog, type EquipmentAsset, type TemplateComponent } 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ClipboardList, Plus, History, ChevronLeft, User, FileText, Sparkles, Loader2, Clock, Wrench, Activity, Ruler, Settings2, FolderOpen, Layers } from 'lucide-react';
+import { ClipboardList, Plus, History, ChevronLeft, User, FileText, Sparkles, Loader2, Clock, Wrench, Activity, Ruler, Settings2, FolderOpen, Layers, Hash } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -67,6 +67,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
     isInMaintenance: false,
     currentServiceRequest: '',
     notes: '',
+    componentSerials: {},
   });
 
   useEffect(() => {
@@ -78,6 +79,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
         isInMaintenance: !!asset.isInMaintenance,
         currentServiceRequest: asset.currentServiceRequest || '',
         notes: asset.notes || '',
+        componentSerials: asset.componentSerials || {},
       });
     }
   }, [asset, isEditAssetOpen]);
@@ -130,6 +132,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
         isInMaintenance: !!editFormData.isInMaintenance,
         currentServiceRequest: editFormData.currentServiceRequest?.trim() || '',
         notes: editFormData.notes?.trim() || '',
+        componentSerials: editFormData.componentSerials || {},
       });
       setIsEditAssetOpen(false);
       toast({ title: "Asset Updated", description: "Records synchronized." });
@@ -219,6 +222,27 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                 <Label>Active SR#</Label>
                 <Input value={editFormData.currentServiceRequest || ''} onChange={(e) => setEditFormData({...editFormData, currentServiceRequest: e.target.value})} />
               </div>
+              
+              {template?.components && template.components.length > 0 && (
+                <div className="space-y-3">
+                  <Label className="text-xs uppercase font-bold text-primary">Sub-Component Serial Numbers</Label>
+                  {template.components.map((c, i) => (
+                    <div key={i} className="grid gap-1">
+                      <Label className="text-[10px] uppercase">{c.name}</Label>
+                      <Input 
+                        placeholder="Serial Number"
+                        className="font-mono text-xs"
+                        value={editFormData.componentSerials?.[c.name] || ''} 
+                        onChange={(e) => {
+                          const newSerials = { ...editFormData.componentSerials, [c.name]: e.target.value };
+                          setEditFormData({...editFormData, componentSerials: newSerials});
+                        }} 
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
                 <div className="space-y-0.5">
                   <Label>Maintenance Status</Label>
@@ -264,12 +288,19 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
             {template?.components && template.components.length > 0 && (
               <div className="col-span-2 pt-2 border-t mt-1">
                 <p className="text-muted-foreground uppercase font-bold tracking-tighter mb-2 flex items-center gap-1">
-                  <Layers className="h-3 w-3" /> Technical Specs
+                  <Layers className="h-3 w-3" /> Technical Specs & Sub-Systems
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   {template.components.map((c, i) => (
                     <div key={i} className="bg-muted/30 p-2 rounded">
-                      <p className="font-bold text-[10px] truncate">{c.name}</p>
+                      <div className="flex justify-between items-start mb-0.5">
+                        <p className="font-bold text-[10px] truncate">{c.name}</p>
+                        {asset.componentSerials?.[c.name] && (
+                          <span className="text-[8px] font-mono bg-primary/10 px-1 rounded border border-primary/20">
+                            S/N: {asset.componentSerials[c.name]}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-muted-foreground text-[9px] truncate">{c.measurements}</p>
                     </div>
                   ))}

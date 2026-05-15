@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from 'react';
@@ -16,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 
 export default function AssetsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -46,6 +48,7 @@ export default function AssetsPage() {
     isInMaintenance: false,
     currentServiceRequest: '',
     notes: '',
+    componentSerials: {},
   });
 
   const handleTemplateSelect = (id: string) => {
@@ -57,6 +60,7 @@ export default function AssetsPage() {
         nomenclature: template.nomenclature,
         nsn: template.nsn,
         tamcn: template.tamcn,
+        componentSerials: {}, // Reset for new template
       });
     }
   };
@@ -80,11 +84,12 @@ export default function AssetsPage() {
         currentServiceRequest: (formData.currentServiceRequest || '').trim(),
         historicalServiceRequests: [],
         notes: (formData.notes || '').trim(),
+        componentSerials: formData.componentSerials || {},
         createdAt: Date.now(),
       });
       
       setIsAddDialogOpen(false);
-      setFormData({ nomenclature: '', serialNumber: '', nsn: '', tamcn: '', owner: '', isInMaintenance: false, currentServiceRequest: '', notes: '' });
+      setFormData({ nomenclature: '', serialNumber: '', nsn: '', tamcn: '', owner: '', isInMaintenance: false, currentServiceRequest: '', notes: '', componentSerials: {} });
       toast({ title: "Asset Registered", description: "Equipment added to inventory." });
     } catch (error: any) {
       toast({ title: "Registration Failed", description: error.message || "Failed to save.", variant: "destructive" });
@@ -92,6 +97,8 @@ export default function AssetsPage() {
       setIsSaving(false);
     }
   };
+
+  const selectedTemplate = templates?.find(t => t.id === formData.templateId);
 
   return (
     <div className="space-y-6">
@@ -177,6 +184,28 @@ export default function AssetsPage() {
                     className="rounded-none"
                   />
                 </div>
+
+                {selectedTemplate?.components && selectedTemplate.components.length > 0 && (
+                  <div className="space-y-3 pt-2">
+                    <Separator />
+                    <Label className="text-[10px] uppercase font-bold text-primary">Sub-Component Serials</Label>
+                    {selectedTemplate.components.map((c, i) => (
+                      <div key={i} className="grid gap-1">
+                        <Label className="text-[9px] uppercase">{c.name}</Label>
+                        <Input 
+                          placeholder="Serial Number"
+                          className="rounded-none font-mono text-xs h-8"
+                          value={formData.componentSerials?.[c.name] || ''} 
+                          onChange={(e) => {
+                            const newSerials = { ...formData.componentSerials, [c.name]: e.target.value };
+                            setFormData({...formData, componentSerials: newSerials});
+                          }} 
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between p-3 border-2 border-dashed border-border">
                   <div className="space-y-0.5">
                     <Label className="text-[10px] uppercase font-bold">Initial Status</Label>

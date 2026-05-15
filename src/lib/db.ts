@@ -29,6 +29,7 @@ export interface EquipmentAsset {
   currentServiceRequest?: string;
   historicalServiceRequests: string[];
   notes: string;
+  componentSerials?: Record<string, string>;
   createdAt: number;
 }
 
@@ -50,7 +51,7 @@ export class MaintainMateDB extends Dexie {
 
   constructor() {
     super('MaintainMateDB');
-    this.version(4).stores({
+    this.version(5).stores({
       assets: '++id, templateId, nomenclature, serialNumber, owner, isInMaintenance, createdAt',
       logs: '++id, assetId, technician, status, timestamp, serviceRequestId',
       templates: '++id, nomenclature, nsn, tamcn'
