@@ -2,7 +2,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
-import { EquipmentAsset, MaintenanceLog, AssetTemplate, TechnicalAssembly, TechnicalComponent } from './db';
+import { EquipmentAsset, MaintenanceLog, AssetTemplate, TechnicalAssembly, TechnicalComponent, TechnicalConnection } from './db';
 
 const primaryColor = [45, 65, 45]; // Olive Drab RGB
 
@@ -74,6 +74,7 @@ export const exportPubsCatalog = (templates: AssetTemplate[]) => {
   const date = format(new Date(), 'yyyyMMdd_HHmm');
   doc.setFontSize(18);
   doc.text('TECHNICAL PUBLICATIONS CATALOG', 105, 20, { align: 'center' });
+  
   templates.forEach((t, i) => {
     if (i > 0) doc.addPage();
     doc.setFontSize(14);
@@ -88,6 +89,8 @@ export const exportPubsCatalog = (templates: AssetTemplate[]) => {
     doc.text(splitText, 15, 53);
 
     let currentY = 55 + (splitText.length * 5);
+    
+    // List Assemblies and Components
     t.assemblies.forEach(assembly => {
       if (currentY > 260) { doc.addPage(); currentY = 20; }
       doc.setFontSize(12);
@@ -107,7 +110,37 @@ export const exportPubsCatalog = (templates: AssetTemplate[]) => {
       });
       currentY = (doc as any).lastAutoTable.finalY + 10;
     });
+
+    // List Topology / Connections
+    if (t.connections && t.connections.length > 0) {
+      if (currentY > 250) { doc.addPage(); currentY = 20; }
+      doc.setFontSize(12);
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.text('System Topology (Signal Paths)', 15, currentY);
+      currentY += 5;
+      
+      const allComponents = t.assemblies.flatMap(a => a.components);
+      
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Source', 'Link', 'Destination', 'Connector', 'Cable ID']],
+        body: t.connections.map(conn => {
+          const src = allComponents.find(c => c.id === conn.sourceComponentId);
+          const dest = allComponents.find(c => c.id === conn.destComponentId);
+          return [
+            src?.name || 'Unknown',
+            conn.type,
+            dest?.name || 'Unknown',
+            conn.connectorType || '-',
+            conn.cableId || '-'
+          ];
+        }),
+        headStyles: { fillColor: [120, 120, 120] },
+      });
+      currentY = (doc as any).lastAutoTable.finalY + 10;
+    }
   });
+  
   doc.save(`PUBS_Catalog_${date}.pdf`);
 };
 

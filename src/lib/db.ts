@@ -57,7 +57,7 @@ export interface AssetTemplate {
   tamcn: string;
   technicalKnowledge: string; // Freeform tribal knowledge/field notes
   assemblies: TechnicalAssembly[];
-  connections: TechnicalConnection[]; // Moved to template level for cross-assembly mapping
+  connections: TechnicalConnection[]; // Global system-level connections
   createdAt: number;
 }
 
@@ -69,12 +69,12 @@ export interface EquipmentAsset {
   templateId: number; 
   serialNumber: string;
   owner: string;
-  maintenanceLocation?: string; // Where it is while being fixed
+  maintenanceLocation?: string; 
   isInMaintenance: boolean;
   currentServiceRequest?: string;
   historicalServiceRequests: string[];
   notes: string;
-  componentSerials?: Record<string, string>; // Maps component IDs to unique serials
+  componentSerials?: Record<string, string>; 
   createdAt: number;
 }
 
@@ -100,24 +100,24 @@ export class MaintainMateDB extends Dexie {
   constructor() {
     super('MaintainMateDB');
     
-    // Version 9: Initial structure
+    // Initial and intermediate versions
     this.version(9).stores({
       assets: '++id, templateId, serialNumber, owner, isInMaintenance, createdAt',
       logs: '++id, assetId, technician, status, timestamp, serviceRequestId',
       templates: '++id, nomenclature, nsn, tamcn'
     });
 
-    // Version 10: Move connections from assembly to template level
+    // Version 10: Relationship-driven topology refactor
     this.version(10).stores({
       assets: '++id, templateId, serialNumber, owner, isInMaintenance, createdAt',
       logs: '++id, assetId, technician, status, timestamp, serviceRequestId',
       templates: '++id, nomenclature, nsn, tamcn'
     }).upgrade(async (trans) => {
-      // Migration: Move existing assembly-level connections to the template level
       const templates = await trans.table('templates').toArray();
       for (const template of templates) {
         const globalConnections: TechnicalConnection[] = template.connections || [];
         
+        // Migrate assembly-nested connections to top-level if any exist
         if (template.assemblies) {
           template.assemblies.forEach((asm: any) => {
             if (asm.connections && Array.isArray(asm.connections)) {

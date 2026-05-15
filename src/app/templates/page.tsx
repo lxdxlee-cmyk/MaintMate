@@ -112,6 +112,15 @@ function TemplatesContent() {
     setIsEditOpen(true);
   };
 
+  // Integrity Cleanup: Remove connections referencing non-existent components
+  const cleanupOrphanedConnections = (assemblies: TechnicalAssembly[], connections: TechnicalConnection[]) => {
+    const validComponentIds = new Set(assemblies.flatMap(a => a.components).map(c => c.id));
+    return connections.filter(conn => 
+      validComponentIds.has(conn.sourceComponentId) && 
+      validComponentIds.has(conn.destComponentId)
+    );
+  };
+
   const handleSave = async (id?: number) => {
     if (!formData.nomenclature?.trim()) {
       toast({ title: "Validation Error", description: "Nomenclature is required.", variant: "destructive" });
@@ -120,13 +129,16 @@ function TemplatesContent() {
 
     setIsSaving(true);
     try {
+      // Run cleanup before saving
+      const cleanedConnections = cleanupOrphanedConnections(formData.assemblies || [], formData.connections || []);
+      
       const payload = {
         nomenclature: formData.nomenclature.trim(),
         nsn: (formData.nsn || '').trim(),
         tamcn: (formData.tamcn || '').trim(),
         technicalKnowledge: (formData.technicalKnowledge || '').trim(),
         assemblies: formData.assemblies || [],
-        connections: formData.connections || [],
+        connections: cleanedConnections,
         createdAt: id ? undefined : Date.now(),
       };
 
