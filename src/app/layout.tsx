@@ -1,10 +1,7 @@
-
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { BottomNav } from '@/components/layout/bottom-nav';
 import { Toaster } from '@/components/ui/toaster';
-import { Analytics } from '@vercel/analytics/react';
-import { SpeedInsights } from '@vercel/speed-insights/next';
 
 export const metadata: Metadata = {
   title: 'MaintainMate',
@@ -42,8 +39,6 @@ export default function RootLayout({
         </main>
         <BottomNav />
         <Toaster />
-        <Analytics />
-        <SpeedInsights />
       </body>
     </html>
   );
