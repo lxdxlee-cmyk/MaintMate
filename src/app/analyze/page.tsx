@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Zap, Loader2, Sparkles, AlertCircle, CheckCircle2, ListChecks, Info } from 'lucide-react';
+import { Zap, Loader2, Sparkles, AlertCircle, CheckCircle2, ListChecks, Info, Layers } from 'lucide-react';
 import { aiPoweredFaultAnalysis, type AIPoweredFaultAnalysisOutput } from '@/ai/flows/ai-powered-fault-analysis';
 import { toast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -36,15 +36,18 @@ export default function AnalyzePage() {
       if (!asset) throw new Error("Equipment asset not found.");
 
       let technicalKnowledge = '';
+      let components: any[] = [];
+      
       if (asset.templateId) {
         const template = await db.templates.get(asset.templateId);
         technicalKnowledge = template?.technicalKnowledge || '';
+        components = template?.components || [];
       }
 
       const historicalLogs = await db.logs
         .where('assetId')
         .equals(asset.id!)
-        .limit(10)
+        .limit(15)
         .toArray();
 
       const result = await aiPoweredFaultAnalysis({
@@ -52,18 +55,22 @@ export default function AnalyzePage() {
         nsn: asset.nsn,
         tamcn: asset.tamcn,
         technicalKnowledge,
+        components: components.map(c => ({
+          name: c.name,
+          description: c.description,
+          measurements: c.measurements
+        })),
         currentFaultDescription: currentFault.trim(),
         historicalMaintenanceLogs: historicalLogs.map(l => ({
           faultObserved: l.activityDescription || 'Maintenance Activity',
           repairActions: l.stepsTaken.join(', ') || 'Observed',
           outcome: l.status || 'Ongoing',
-          notes: '',
           timestamp: new Date(l.timestamp).toISOString()
         }))
       });
 
       setAnalysisResult(result);
-      toast({ title: "Analysis complete", description: "AI leveraged technical knowledge for diagnostic." });
+      toast({ title: "Analysis complete", description: "AI leveraged component specs for diagnostic." });
     } catch (e: any) {
       toast({ title: "Analysis Failed", description: e.message || "Intelligence request error.", variant: "destructive" });
     } finally {
@@ -78,7 +85,7 @@ export default function AnalyzePage() {
           <Zap className="h-6 w-6 text-accent" />
           Troubleshooting Agent
         </h1>
-        <p className="text-sm text-muted-foreground">AI fault analysis driven by technical knowledge base</p>
+        <p className="text-sm text-muted-foreground">AI fault analysis driven by component measurements</p>
       </header>
 
       <Card className="border-none shadow-sm bg-white">
@@ -101,7 +108,7 @@ export default function AnalyzePage() {
           <div className="grid gap-2">
             <Label>Symptoms / Observed Fault</Label>
             <Textarea 
-              placeholder="e.g. Engine wont turn over, hydraulic leak at boom..." 
+              placeholder="e.g. Low voltage at master switch, won't start..." 
               value={currentFault}
               onChange={(e) => setCurrentFault(e.target.value)}
               className="min-h-[100px]"
@@ -114,7 +121,7 @@ export default function AnalyzePage() {
             disabled={isAnalyzing || !selectedAssetId || !currentFault?.trim()}
           >
             {isAnalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-            {isAnalyzing ? "Processing Technical Manuals..." : "Analyze with AI Knowledge"}
+            {isAnalyzing ? "Analyzing Component Specs..." : "Run AI Diagnostic"}
           </Button>
         </CardContent>
       </Card>
@@ -150,12 +157,12 @@ export default function AnalyzePage() {
 
                 <section className="space-y-2">
                   <h3 className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 text-accent">
-                    <ListChecks className="h-3 w-3" /> Recommended Troubleshooting Steps
+                    <ListChecks className="h-3 w-3" /> Technical Troubleshooting Steps
                   </h3>
                   <div className="grid gap-2">
                     {analysisResult.troubleshootingSteps.map((step, i) => (
                       <div key={i} className="p-2 bg-accent/5 border-l-2 border-accent rounded text-xs flex gap-2">
-                        <span className="font-bold">{i + 1}.</span>
+                        <span className="font-bold shrink-0">{i + 1}.</span>
                         <span>{step}</span>
                       </div>
                     ))}

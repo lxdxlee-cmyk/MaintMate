@@ -3,15 +3,16 @@
 
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type AssetTemplate } from '@/lib/db';
+import { db, type AssetTemplate, type TemplateComponent } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, BookOpen, Trash2, Search, Loader2, Info } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Plus, BookOpen, Trash2, Search, Loader2, Layers, Settings2, Info } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
+import { Separator } from '@/components/ui/separator';
 
 export default function TemplatesPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -30,7 +31,30 @@ export default function TemplatesPage() {
     nsn: '',
     tamcn: '',
     technicalKnowledge: '',
+    components: [],
   });
+
+  const [newComponent, setNewComponent] = useState<TemplateComponent>({
+    name: '',
+    description: '',
+    measurements: '',
+  });
+
+  const handleAddComponent = () => {
+    if (!newComponent.name.trim()) return;
+    setFormData({
+      ...formData,
+      components: [...(formData.components || []), { ...newComponent }]
+    });
+    setNewComponent({ name: '', description: '', measurements: '' });
+  };
+
+  const removeComponent = (index: number) => {
+    setFormData({
+      ...formData,
+      components: (formData.components || []).filter((_, i) => i !== index)
+    });
+  };
 
   const handleAddTemplate = async () => {
     if (!formData.nomenclature?.trim()) {
@@ -45,10 +69,11 @@ export default function TemplatesPage() {
         nsn: (formData.nsn || '').trim(),
         tamcn: (formData.tamcn || '').trim(),
         technicalKnowledge: (formData.technicalKnowledge || '').trim(),
+        components: formData.components || [],
         createdAt: Date.now(),
       });
       setIsAddOpen(false);
-      setFormData({ nomenclature: '', nsn: '', tamcn: '', technicalKnowledge: '' });
+      setFormData({ nomenclature: '', nsn: '', tamcn: '', technicalKnowledge: '', components: [] });
       toast({ title: "Template Saved", description: "Technical standard added to library." });
     } catch (e) {
       toast({ title: "Error", description: "Failed to save template.", variant: "destructive" });
@@ -75,11 +100,11 @@ export default function TemplatesPage() {
           <DialogTrigger asChild>
             <Button size="sm"><Plus className="h-4 w-4 mr-1" /> New Template</Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create Asset Template</DialogTitle>
             </DialogHeader>
-            <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
+            <div className="grid gap-4 py-4 pr-1">
               <div className="grid gap-2">
                 <Label>Nomenclature</Label>
                 <Input 
@@ -106,20 +131,76 @@ export default function TemplatesPage() {
                   />
                 </div>
               </div>
+
+              <Separator className="my-2" />
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-2">
+                    <Layers className="h-4 w-4 text-primary" />
+                    Sub-Systems / Components
+                  </Label>
+                </div>
+
+                <div className="grid gap-3 p-3 border rounded-lg bg-muted/20">
+                  <div className="grid gap-2">
+                    <Input 
+                      placeholder="Component Name (e.g. Alternator)" 
+                      value={newComponent.name}
+                      onChange={e => setNewComponent({...newComponent, name: e.target.value})}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Textarea 
+                      placeholder="Description/Purpose" 
+                      className="h-16"
+                      value={newComponent.description}
+                      onChange={e => setNewComponent({...newComponent, description: e.target.value})}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Input 
+                      placeholder="Specific Measurements (e.g. 24V +/- 1V)" 
+                      value={newComponent.measurements}
+                      onChange={e => setNewComponent({...newComponent, measurements: e.target.value})}
+                    />
+                  </div>
+                  <Button variant="secondary" size="sm" onClick={handleAddComponent} className="w-full">
+                    <Plus className="h-3 w-3 mr-1" /> Add Component to Template
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  {formData.components?.map((comp, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-2 bg-white rounded border shadow-sm">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold truncate">{comp.name}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{comp.measurements}</p>
+                      </div>
+                      <Button variant="ghost" size="icon" onClick={() => removeComponent(idx)} className="h-8 w-8 text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <Separator className="my-2" />
+
               <div className="grid gap-2">
                 <Label>Technical Knowledge (AI Context)</Label>
                 <Textarea 
-                  placeholder="Paste specific technical specs, common faults, or TM logic here for the AI troubleshooter..." 
-                  className="h-40"
+                  placeholder="Paste specific technical manual logic, general fault codes, etc." 
+                  className="h-32"
                   value={formData.technicalKnowledge || ''} 
                   onChange={e => setFormData({...formData, technicalKnowledge: e.target.value})}
                 />
-                <p className="text-[10px] text-muted-foreground">This info is used by the AI to analyze faults specifically for this equipment class.</p>
+                <p className="text-[10px] text-muted-foreground">Detailed logic for the AI to analyze equipment-wide faults.</p>
               </div>
             </div>
             <DialogFooter>
               <Button onClick={handleAddTemplate} className="w-full" disabled={isSaving}>
-                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Template"}
+                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Save Template"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -145,14 +226,19 @@ export default function TemplatesPage() {
           templates.map(t => (
             <Card key={t.id} className="border-none shadow-sm">
               <CardContent className="p-4 flex items-center justify-between">
-                <div className="space-y-1">
-                  <h3 className="font-bold text-sm text-primary">{t.nomenclature}</h3>
+                <div className="space-y-1 min-w-0 flex-1">
+                  <h3 className="font-bold text-sm text-primary truncate">{t.nomenclature}</h3>
                   <div className="flex gap-4 text-[10px] font-mono text-muted-foreground">
                     <span>NSN: {t.nsn || 'N/A'}</span>
                     <span>TAMCN: {t.tamcn || 'N/A'}</span>
                   </div>
+                  {t.components && t.components.length > 0 && (
+                    <p className="text-[10px] text-accent font-bold">
+                      {t.components.length} Components defined
+                    </p>
+                  )}
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => handleDelete(t.id!)} className="text-muted-foreground hover:text-destructive">
+                <Button variant="ghost" size="icon" onClick={() => handleDelete(t.id!)} className="text-muted-foreground hover:text-destructive shrink-0 ml-2">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </CardContent>

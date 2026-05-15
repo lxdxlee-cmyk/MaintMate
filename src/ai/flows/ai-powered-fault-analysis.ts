@@ -3,11 +3,17 @@
 /**
  * @fileOverview A Genkit flow for AI-powered fault analysis.
  *
- * - aiPoweredFaultAnalysis - A function that analyzes historical maintenance logs to suggest common problems, causes, and troubleshooting steps.
+ * - aiPoweredFaultAnalysis - A function that analyzes historical maintenance logs and component specs to suggest troubleshooting steps.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+
+const ComponentSpecSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  measurements: z.string(),
+});
 
 const MaintenanceLogEntrySchema = z.object({
   faultObserved: z.string().describe('Description of the fault observed.'),
@@ -21,7 +27,8 @@ const AIPoweredFaultAnalysisInputSchema = z.object({
   equipmentType: z.string().describe('The nomenclature/type of the equipment.'),
   nsn: z.string().optional(),
   tamcn: z.string().optional(),
-  technicalKnowledge: z.string().optional().describe('Specific technical manual knowledge or reference data provided in the template.'),
+  technicalKnowledge: z.string().optional().describe('Specific technical manual knowledge or reference data.'),
+  components: z.array(ComponentSpecSchema).optional().describe('Sub-systems and their technical specs.'),
   currentFaultDescription: z.string().describe('A detailed description of the fault currently observed.'),
   historicalMaintenanceLogs: z.array(MaintenanceLogEntrySchema).describe('Past maintenance history.'),
 });
@@ -31,7 +38,7 @@ const AIPoweredFaultAnalysisOutputSchema = z.object({
   summary: z.string(),
   commonProblems: z.array(z.string()),
   potentialCauses: z.array(z.string()),
-  troubleshootingSteps: z.array(z.string()),
+  troubleshootingSteps: z.array(z.string().describe('Steps including specific technical measurements from component specs.')),
 });
 export type AIPoweredFaultAnalysisOutput = z.infer<typeof AIPoweredFaultAnalysisOutputSchema>;
 
@@ -51,6 +58,15 @@ Reference Knowledge Base:
 {{{technicalKnowledge}}}
 {{/if}}
 
+{{#if components}}
+Component-Specific Data (Use these measurements in troubleshooting steps):
+{{#each components}}
+- Component: {{{this.name}}}
+  Desc: {{{this.description}}}
+  Required Measurements: {{{this.measurements}}}
+{{/each}}
+{{/if}}
+
 Current Fault Observed: {{{currentFaultDescription}}}
 
 Historical Context:
@@ -65,7 +81,7 @@ Historical Context:
 Provide a detailed diagnostic report:
 1. Summary of analysis.
 2. Likely causes (prioritized).
-3. Specific troubleshooting steps using the technical knowledge if provided.
+3. Specific troubleshooting steps. INTEGRATE the measurements provided in the Component Data section into these steps (e.g., "Step X: Verify voltage at [Component], expect [Measurement]").
 4. Historical patterns for this nomenclature.`
 });
 
