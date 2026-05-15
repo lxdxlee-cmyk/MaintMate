@@ -3,7 +3,7 @@
 
 import { use, useState, useEffect, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type MaintenanceLog, type EquipmentAsset } from '@/lib/db';
+import { db, type MaintenanceLog, type EquipmentAsset, type AssetTemplate } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,15 +35,16 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
     isNaN(assetId) ? [] : db.logs.where('assetId').equals(assetId).reverse().sortBy('timestamp'), 
     [assetId]
   );
-  const template = useLiveQuery(() => 
-    asset?.templateId ? db.templates.get(asset.templateId) : undefined, 
-    [asset?.templateId]
-  );
+  
+  const template = useLiveQuery(async () => {
+    if (!asset?.templateId) return undefined;
+    return db.templates.get(asset.templateId);
+  }, [asset?.templateId]);
 
   const groupedLogs = useMemo(() => {
     if (!logs) return {};
     return logs.reduce((acc, log) => {
-      const sr = log.serviceRequestId || 'Unassigned / General';
+      const sr = log.serviceRequestId || 'General Tasking';
       if (!acc[sr]) acc[sr] = [];
       acc[sr].push(log);
       return acc;
@@ -60,7 +61,6 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
   const [stepsInput, setStepsInput] = useState('');
 
   const [editFormData, setEditFormData] = useState<Partial<EquipmentAsset>>({
-    nomenclature: '',
     serialNumber: '',
     owner: '',
     isInMaintenance: false,
@@ -72,7 +72,6 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
   useEffect(() => {
     if (asset && isEditAssetOpen) {
       setEditFormData({
-        nomenclature: asset.nomenclature || '',
         serialNumber: asset.serialNumber || '',
         owner: asset.owner || '',
         isInMaintenance: !!asset.isInMaintenance,
@@ -84,7 +83,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
   }, [asset, isEditAssetOpen]);
 
   const handleMagicFill = async () => {
-    if (!logFormData.activityDescription?.trim() || !asset?.nomenclature) {
+    if (!logFormData.activityDescription?.trim() || !template?.nomenclature) {
       toast({ title: "Details needed", description: "Enter a task description first." });
       return;
     }
@@ -93,16 +92,13 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
     try {
       const result = await suggestMaintenancePrefill({
         description: logFormData.activityDescription,
-        nomenclature: asset.nomenclature,
-        components: template?.components?.map(c => ({ name: c.name, measurements: c.measurements })) || []
+        nomenclature: template.nomenclature,
+        components: template.components?.map(c => ({ name: c.name, measurements: c.measurements })) || []
       });
       
-      setLogFormData(prev => ({
-        ...prev,
-        status: result.likelyStatus as any,
-      }));
+      setLogFormData(prev => ({ ...prev, status: result.likelyStatus as any }));
       setStepsInput(result.suggestedSteps.join('\n'));
-      toast({ title: "AI Assisted", description: "Suggested steps with measurements." });
+      toast({ title: "AI Assisted", description: "Reference doctrine applied to pre-fill." });
     } catch (e) {
       toast({ title: "AI Unavailable", description: "Failed to fetch suggestions.", variant: "destructive" });
     } finally {
@@ -111,15 +107,14 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
   };
 
   const handleEditAsset = async () => {
-    if (!editFormData.nomenclature?.trim() || !editFormData.serialNumber?.trim()) {
-      toast({ title: "Required Fields", description: "Nomenclature and Serial Number are required.", variant: "destructive" });
+    if (!editFormData.serialNumber?.trim()) {
+      toast({ title: "Required", description: "Serial Number is mandatory.", variant: "destructive" });
       return;
     }
 
     setIsUpdatingAsset(true);
     try {
       await db.assets.update(assetId, {
-        nomenclature: editFormData.nomenclature.trim(),
         serialNumber: editFormData.serialNumber.trim(),
         owner: editFormData.owner?.trim() || 'Unassigned',
         isInMaintenance: !!editFormData.isInMaintenance,
@@ -128,7 +123,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
         componentSerials: editFormData.componentSerials || {},
       });
       setIsEditAssetOpen(false);
-      toast({ title: "Asset Updated", description: "Records synchronized." });
+      toast({ title: "Asset Updated", description: "Serialized record synchronized." });
     } catch (error) {
       toast({ title: "Update Failed", description: "Database error.", variant: "destructive" });
     } finally {
@@ -138,7 +133,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
 
   const handleAddLog = async () => {
     if (!logFormData.activityDescription?.trim() || !logFormData.technician?.trim()) {
-      toast({ title: "Validation Error", description: "Technician and description required.", variant: "destructive" });
+      toast({ title: "Validation", description: "Technician and description required.", variant: "destructive" });
       return;
     }
 
@@ -170,7 +165,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
       setIsAddLogOpen(false);
       setLogFormData({ technician: '', activityDescription: '', status: 'Ongoing', serviceRequestId: '', stepsTaken: [] });
       setStepsInput('');
-      toast({ title: "Log Recorded", description: "Entry added to history." });
+      toast({ title: "Log Recorded", description: "Event attached to asset history." });
     } catch (error) {
       toast({ title: "Error", description: "Failed to save log.", variant: "destructive" });
     } finally {
@@ -178,41 +173,31 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
     }
   };
 
-  const handleExportHistory = () => {
-    if (asset && logs) {
-      exportAssetHistoryReport(asset, logs);
-    }
-  };
-
   if (asset === undefined) return <div className="p-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /></div>;
-  if (!asset) return <div className="p-20 text-center">Asset Not Found</div>;
+  if (!asset) return <div className="p-20 text-center">Serialized Asset Not Found</div>;
 
   return (
     <div className="space-y-6 pb-20">
       <div className="flex items-center justify-between">
         <Link href="/assets" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
-          <ChevronLeft className="h-4 w-4 mr-1" /> Inventory
+          <ChevronLeft className="h-4 w-4 mr-1" /> Unit Inventory
         </Link>
         
         <div className="flex gap-2">
-          <Button variant="ghost" size="sm" onClick={handleExportHistory} className="h-8 text-[9px] font-bold uppercase gap-1">
+          <Button variant="ghost" size="sm" onClick={() => exportAssetHistoryReport(asset, logs)} className="h-8 text-[9px] font-bold uppercase gap-1">
             <FileDown className="h-4 w-4" /> Export ERO
           </Button>
           <Dialog open={isEditAssetOpen} onOpenChange={setIsEditAssetOpen}>
             <DialogTrigger asChild>
               <Button variant="ghost" size="sm" className="h-8 text-muted-foreground">
-                <Settings2 className="h-4 w-4 mr-1" /> Edit
+                <Settings2 className="h-4 w-4 mr-1" /> Unit Config
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle>Edit Equipment Details</DialogTitle>
+                <DialogTitle>Edit Serialized Record</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
-                <div className="grid gap-2">
-                  <Label>Nomenclature</Label>
-                  <Input value={editFormData.nomenclature || ''} onChange={(e) => setEditFormData({...editFormData, nomenclature: e.target.value})} />
-                </div>
                 <div className="grid gap-2">
                   <Label>Serial Number</Label>
                   <Input value={editFormData.serialNumber || ''} onChange={(e) => setEditFormData({...editFormData, serialNumber: e.target.value})} />
@@ -228,12 +213,12 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                 
                 {template?.components && template.components.length > 0 && (
                   <div className="space-y-3">
-                    <Label className="text-xs uppercase font-bold text-primary">Sub-Component Serial Numbers</Label>
+                    <Label className="text-xs uppercase font-bold text-primary">Sub-Component Serials (SL-3)</Label>
                     {template.components.map((c, i) => (
                       <div key={i} className="grid gap-1">
                         <Label className="text-[10px] uppercase">{c.name}</Label>
                         <Input 
-                          placeholder="Serial Number"
+                          placeholder="Unique ID"
                           className="font-mono text-xs"
                           value={editFormData.componentSerials?.[c.name] || ''} 
                           onChange={(e) => {
@@ -248,13 +233,13 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
 
                 <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
                   <div className="space-y-0.5">
-                    <Label>Maintenance Status</Label>
-                    <p className="text-[10px] text-muted-foreground">Set as Deadlined / In-Work</p>
+                    <Label>Deadlined Status</Label>
+                    <p className="text-[10px] text-muted-foreground">Force set as NMC / In-Work</p>
                   </div>
                   <Switch checked={!!editFormData.isInMaintenance} onCheckedChange={(checked) => setEditFormData({...editFormData, isInMaintenance: checked})} />
                 </div>
                 <div className="grid gap-2">
-                  <Label>Notes</Label>
+                  <Label>Local Unit Notes</Label>
                   <Textarea value={editFormData.notes || ''} onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})} />
                 </div>
               </div>
@@ -271,28 +256,36 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
       <div className="space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold text-primary">{asset.nomenclature}</h1>
-            <p className="text-sm font-mono text-muted-foreground">SN: {asset.serialNumber}</p>
+            <h1 className="text-2xl font-bold text-primary">{template?.nomenclature || 'SERIALIZED UNIT'}</h1>
+            <p className="text-sm font-mono text-muted-foreground uppercase tracking-widest">SN: {asset.serialNumber}</p>
           </div>
           <Badge variant={asset.isInMaintenance ? "destructive" : "secondary"}>
-            {asset.isInMaintenance ? "Deadlined" : "Ready"}
+            {asset.isInMaintenance ? "NMC / DEADLINED" : "FMC / READY"}
           </Badge>
         </div>
 
         <Card className="border-none shadow-sm bg-white">
           <CardContent className="p-4 grid grid-cols-2 gap-4 text-xs">
             <div>
-              <p className="text-muted-foreground uppercase font-bold tracking-tighter mb-1">Owner / Custodian</p>
+              <p className="text-muted-foreground uppercase font-bold tracking-tighter mb-1">Custodian</p>
               <p className="font-medium">{asset.owner}</p>
             </div>
             <div>
               <p className="text-muted-foreground uppercase font-bold tracking-tighter mb-1">Active SR#</p>
               <p className="font-mono">{asset.currentServiceRequest || "None"}</p>
             </div>
+            <div>
+              <p className="text-muted-foreground uppercase font-bold tracking-tighter mb-1">NSN</p>
+              <p className="font-mono">{template?.nsn || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground uppercase font-bold tracking-tighter mb-1">TAMCN</p>
+              <p className="font-mono">{template?.tamcn || 'N/A'}</p>
+            </div>
             {template?.components && template.components.length > 0 && (
               <div className="col-span-2 pt-2 border-t mt-1">
                 <p className="text-muted-foreground uppercase font-bold tracking-tighter mb-2 flex items-center gap-1">
-                  <Layers className="h-3 w-3" /> Technical Specs & Sub-Systems
+                  <Layers className="h-3 w-3" /> Technical Doctrine (PUBS Specs)
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   {template.components.map((c, i) => (
@@ -312,7 +305,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
               </div>
             )}
             <div className="col-span-2 pt-2 border-t mt-1">
-              <p className="text-muted-foreground uppercase font-bold tracking-tighter mb-1">Notes</p>
+              <p className="text-muted-foreground uppercase font-bold tracking-tighter mb-1">Unit Remarks</p>
               <p className="text-foreground">{asset.notes || "No additional records."}</p>
             </div>
           </CardContent>
@@ -323,49 +316,49 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold flex items-center gap-2">
             <Activity className="h-4 w-4 text-primary" />
-            History
+            ERO / Event History
           </h2>
           <Dialog open={isAddLogOpen} onOpenChange={setIsAddLogOpen}>
             <DialogTrigger asChild>
               <Button size="sm" className="h-8">
-                <Plus className="h-4 w-4 mr-1" /> Log Activity
+                <Plus className="h-4 w-4 mr-1" /> Log Entry
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Technical Entry</DialogTitle>
+                <DialogTitle>Technical Journal Entry</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
-                    <Label>Technician</Label>
-                    <Input placeholder="ID / Name" value={logFormData.technician || ''} onChange={(e) => setLogFormData({...logFormData, technician: e.target.value})} />
+                    <Label>Maintainer</Label>
+                    <Input placeholder="Rank / Name" value={logFormData.technician || ''} onChange={(e) => setLogFormData({...logFormData, technician: e.target.value})} />
                   </div>
                   <div className="grid gap-2">
-                    <Label>SR#</Label>
-                    <Input placeholder="Current SR#" value={logFormData.serviceRequestId || ''} onChange={(e) => setLogFormData({...logFormData, serviceRequestId: e.target.value})} />
+                    <Label>Task SR#</Label>
+                    <Input placeholder="Service Request" value={logFormData.serviceRequestId || ''} onChange={(e) => setLogFormData({...logFormData, serviceRequestId: e.target.value})} />
                   </div>
                 </div>
                 
                 <div className="grid gap-2">
                   <div className="flex items-center justify-between">
-                    <Label>Activity / Task Description</Label>
+                    <Label>Activity Description</Label>
                     <Button variant="ghost" size="sm" onClick={handleMagicFill} disabled={isAiLoading || !logFormData.activityDescription?.trim()} className="h-6 text-[10px] text-accent font-bold p-0">
                       {isAiLoading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
-                      Use AI Logic
+                      Apply Doctrine (AI)
                     </Button>
                   </div>
-                  <Textarea placeholder="E.g. Troubleshooting primary power..." className="h-20" value={logFormData.activityDescription || ''} onChange={(e) => setLogFormData({...logFormData, activityDescription: e.target.value})} />
+                  <Textarea placeholder="Fault analysis or repair details..." className="h-20" value={logFormData.activityDescription || ''} onChange={(e) => setLogFormData({...logFormData, activityDescription: e.target.value})} />
                 </div>
 
                 <div className="grid gap-2">
-                  <Label>Steps & Measurements (one per line)</Label>
-                  <Textarea placeholder="Step 1: Check fuse...&#10;Step 2: Voltage at J1: 24.2V..." className="h-40" value={stepsInput} onChange={(e) => setStepsInput(e.target.value)} />
-                  <p className="text-[10px] text-muted-foreground">AI pre-fill will include measurements from your template components.</p>
+                  <Label>Repair Actions & Specs (one per line)</Label>
+                  <Textarea placeholder="Step 1: Analyzed power grid...&#10;Step 2: Measurement at J3: 12.1VDC..." className="h-40" value={stepsInput} onChange={(e) => setStepsInput(e.target.value)} />
+                  <p className="text-[10px] text-muted-foreground">AI pre-fill leverages specifications defined in the PUBS template.</p>
                 </div>
 
                 <div className="grid gap-2">
-                  <Label>Task Status</Label>
+                  <Label>Job Status</Label>
                   <div className="flex flex-wrap gap-2">
                     {['Ongoing', 'Awaiting Parts', 'Resolved'].map((s) => (
                       <Badge key={s} variant={logFormData.status === s ? 'default' : 'outline'} className="cursor-pointer" onClick={() => setLogFormData({...logFormData, status: s as any})}>
@@ -377,7 +370,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
               </div>
               <DialogFooter>
                 <Button onClick={handleAddLog} className="w-full" disabled={isSaving}>
-                  {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Save Entry"}
+                  {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Commit Record"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -386,8 +379,8 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
 
         <div className="space-y-4">
           {Object.keys(groupedLogs).length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-xl border border-dashed">
-              <p className="text-sm text-muted-foreground">No activities recorded.</p>
+            <div className="text-center py-12 bg-white rounded-xl border border-dashed border-primary/20">
+              <p className="text-sm text-muted-foreground italic">No historical events recorded for this unit.</p>
             </div>
           ) : (
             <Accordion type="single" collapsible className="space-y-4" defaultValue={asset.currentServiceRequest || Object.keys(groupedLogs)[0]}>
@@ -401,7 +394,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                       <div>
                         <p className="text-sm font-bold text-primary">SR: {srId}</p>
                         <p className="text-[10px] text-muted-foreground uppercase tracking-tighter">
-                          {srLogs.length} Entries • Last update {format(srLogs[0].timestamp, 'MMM d')}
+                          {srLogs.length} Records • Latest: {format(srLogs[0].timestamp, 'MMM d')}
                         </p>
                       </div>
                     </div>
