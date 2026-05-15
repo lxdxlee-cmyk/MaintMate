@@ -160,28 +160,33 @@ export default function AssetsPage() {
                   />
                 </div>
 
-                {selectedTemplate?.components && selectedTemplate.components.length > 0 && (
-                  <div className="space-y-3 pt-2">
+                {selectedTemplate?.assemblies && selectedTemplate.assemblies.length > 0 && (
+                  <div className="space-y-4 pt-2">
                     <Separator />
-                    <Label className="text-[10px] uppercase font-bold text-primary">Sub-Component Serials (PUBS)</Label>
-                    {selectedTemplate.components.map((c, i) => (
-                      <div key={i} className="grid gap-1">
-                        <Label className="text-[9px] uppercase">{c.name}</Label>
-                        <Input 
-                          placeholder="Unique Serial"
-                          className="rounded-none font-mono text-xs h-8"
-                          value={formData.componentSerials?.[c.name] || ''} 
-                          onChange={(e) => {
-                            const newSerials = { ...formData.componentSerials, [c.name]: e.target.value };
-                            setFormData({...formData, componentSerials: newSerials});
-                          }} 
-                        />
+                    <Label className="text-[10px] uppercase font-black text-primary">Sub-Component Serials (PUBS)</Label>
+                    {selectedTemplate.assemblies.map((asm) => (
+                      <div key={asm.name} className="space-y-2">
+                        <p className="text-[9px] font-black uppercase text-muted-foreground bg-muted p-1">{asm.name}</p>
+                        {asm.components.map((c) => (
+                          <div key={c.id} className="grid gap-1 pl-2 border-l-2">
+                            <Label className="text-[8px] uppercase font-bold">{c.name}</Label>
+                            <Input 
+                              placeholder="Unique Serial"
+                              className="rounded-none font-mono text-xs h-7"
+                              value={formData.componentSerials?.[c.id] || ''} 
+                              onChange={(e) => {
+                                const newSerials = { ...formData.componentSerials, [c.id]: e.target.value };
+                                setFormData({...formData, componentSerials: newSerials});
+                              }} 
+                            />
+                          </div>
+                        ))}
                       </div>
                     ))}
                   </div>
                 )}
 
-                <div className="flex items-center justify-between p-3 border-2 border-dashed border-border">
+                <div className="flex items-center justify-between p-3 border-2 border-dashed border-border bg-muted/20">
                   <div className="space-y-0.5">
                     <Label className="text-[10px] uppercase font-bold">Readiness</Label>
                     <p className="text-[9px] text-muted-foreground font-mono uppercase">Induct as Deadlined / NMC</p>

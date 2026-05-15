@@ -13,10 +13,17 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/comp
 import { Button } from '@/components/ui/button';
 import { exportReadinessReport, exportFullUnitJournal } from '@/lib/pdf-export';
 import { toast } from '@/hooks/use-toast';
+import { useState, useEffect } from 'react';
 
-const APP_VERSION = "v1.3.2-SECURE";
+const APP_VERSION = "v1.4.0-STABLE";
 
 export default function Home() {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const recentLogs = useLiveQuery(async () => {
     const logs = await db.logs.orderBy('timestamp').reverse().limit(3).toArray();
     return Promise.all(logs.map(async log => {
@@ -184,7 +191,7 @@ export default function Home() {
           <Button 
             variant="outline" 
             onClick={handleMasterExport}
-            className="flex flex-col items-start p-4 h-auto bg-white text-accent border-2 border-accent hover:bg-accent/10 transition-all shadow-md gap-3 text-left rounded-none"
+            className="flex flex-col items-start p-4 h-auto bg-white text-accent border-2 border-accent hover:bg-accent/10 transition-all shadow-md text-left rounded-none"
           >
             <FileStack className="h-6 w-6" />
             <div className="space-y-0.5">
@@ -207,7 +214,7 @@ export default function Home() {
         </div>
 
         <div className="space-y-2">
-          {recentLogs === undefined ? (
+          {!isMounted || recentLogs === undefined ? (
             <div className="flex justify-center py-8"><Clock className="h-5 w-5 animate-spin text-muted-foreground" /></div>
           ) : recentLogs.length === 0 ? (
             <div className="text-center py-8 bg-white border-2 border-dashed border-border">
