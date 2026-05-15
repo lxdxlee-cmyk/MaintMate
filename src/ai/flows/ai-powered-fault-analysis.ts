@@ -2,8 +2,6 @@
 'use server';
 /**
  * @fileOverview A Genkit flow for AI-powered fault analysis.
- *
- * - aiPoweredFaultAnalysis - A function that analyzes historical maintenance logs and component specs to suggest troubleshooting steps.
  */
 
 import {ai} from '@/ai/genkit';
@@ -11,38 +9,47 @@ import {z} from 'genkit';
 
 const ComponentSpecSchema = z.object({
   name: z.string(),
-  description: z.string(),
-  measurements: z.string(),
+  alias: z.string().optional(),
+  purpose: z.string().optional(),
+  measurements: z.string().optional().describe('Structured measurements/specs.'),
+  knownFaults: z.array(z.object({
+    symptom: z.string(),
+    cause: z.string(),
+    fix: z.string(),
+  })).optional(),
+});
+
+const AssemblySchema = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  components: z.array(ComponentSpecSchema),
 });
 
 const MaintenanceLogEntrySchema = z.object({
-  faultObserved: z.string().describe('Description of the fault observed.'),
-  repairActions: z.string().describe('Description of the repair actions performed.'),
-  outcome: z.string().describe('The outcome of the repair.'),
-  notes: z.string().optional(),
+  faultObserved: z.string(),
+  repairActions: z.string(),
+  outcome: z.string(),
   timestamp: z.string(),
 });
 
 const AIPoweredFaultAnalysisInputSchema = z.object({
-  equipmentType: z.string().describe('The nomenclature/type of the equipment.'),
+  equipmentType: z.string(),
   nsn: z.string().optional(),
   tamcn: z.string().optional(),
-  technicalKnowledge: z.string().optional().describe('Specific technical manual knowledge or reference data.'),
-  components: z.array(ComponentSpecSchema).optional().describe('Sub-systems and their technical specs.'),
+  technicalKnowledge: z.string().optional().describe('Freeform field notes or tribal knowledge.'),
+  assemblies: z.array(AssemblySchema).optional().describe('Hierarchical technical structure.'),
   currentFaultDescription: z.string().describe('A detailed description of the fault currently observed.'),
   historicalMaintenanceLogs: z.array(MaintenanceLogEntrySchema).describe('Past maintenance history.'),
 });
-export type AIPoweredFaultAnalysisInput = z.infer<typeof AIPoweredFaultAnalysisInputSchema>;
 
 const AIPoweredFaultAnalysisOutputSchema = z.object({
   summary: z.string(),
   commonProblems: z.array(z.string()),
   potentialCauses: z.array(z.string()),
-  troubleshootingSteps: z.array(z.string().describe('Steps including specific technical measurements from component specs.')),
+  troubleshootingSteps: z.array(z.string()),
 });
-export type AIPoweredFaultAnalysisOutput = z.infer<typeof AIPoweredFaultAnalysisOutputSchema>;
 
-export async function aiPoweredFaultAnalysis(input: AIPoweredFaultAnalysisInput): Promise<AIPoweredFaultAnalysisOutput> {
+export async function aiPoweredFaultAnalysis(input: z.infer<typeof AIPoweredFaultAnalysisInputSchema>) {
   return aiPoweredFaultAnalysisFlow(input);
 }
 
@@ -50,39 +57,29 @@ const aiPoweredFaultAnalysisPrompt = ai.definePrompt({
   name: 'aiPoweredFaultAnalysisPrompt',
   input: { schema: AIPoweredFaultAnalysisInputSchema },
   output: { schema: AIPoweredFaultAnalysisOutputSchema },
-  prompt: `You are an expert maintenance diagnostician for complex equipment. 
-Analyze the current fault for: {{{equipmentType}}} (NSN: {{{nsn}}}, TAMCN: {{{tamcn}}}).
+  prompt: `You are an expert technical diagnostician.
+Analyze the fault for: {{{equipmentType}}} (NSN: {{{nsn}}}).
 
-{{#if technicalKnowledge}}
-Reference Knowledge Base:
-{{{technicalKnowledge}}}
-{{/if}}
-
-{{#if components}}
-Component-Specific Data (Use these measurements in troubleshooting steps):
-{{#each components}}
-- Component: {{{this.name}}}
-  Desc: {{{this.description}}}
-  Required Measurements: {{{this.measurements}}}
+Hierarchy & Specs:
+{{#each assemblies}}
+Assembly: {{{this.name}}}
+{{#each this.components}}
+- Component: {{{this.name}}} ({{{this.purpose}}})
+  Measurements: {{{this.measurements}}}
+  Known Faults: {{#each this.knownFaults}}{{{this.symptom}}} -> {{{this.fix}}}; {{/each}}
 {{/each}}
-{{/if}}
+{{/each}}
 
-Current Fault Observed: {{{currentFaultDescription}}}
+Field Knowledge: {{{technicalKnowledge}}}
 
-Historical Context:
-{{#if historicalMaintenanceLogs}}
-  {{#each historicalMaintenanceLogs}}
-  - Record: {{{this.faultObserved}}} | Actions: {{{this.repairActions}}} | Outcome: {{{this.outcome}}}
-  {{/each}}
-{{else}}
-  No historical logs for this specific unit.
-{{/if}}
+Observed Fault: {{{currentFaultDescription}}}
 
-Provide a detailed diagnostic report:
-1. Summary of analysis.
-2. Likely causes (prioritized).
-3. Specific troubleshooting steps. INTEGRATE the measurements provided in the Component Data section into these steps (e.g., "Step X: Verify voltage at [Component], expect [Measurement]").
-4. Historical patterns for this nomenclature.`
+History:
+{{#each historicalMaintenanceLogs}}
+- {{{this.faultObserved}}} | Actions: {{{this.repairActions}}} | Outcome: {{{this.outcome}}}
+{{/each}}
+
+Provide a diagnostic report mapping logic against the provided assembly/component structure.`
 });
 
 const aiPoweredFaultAnalysisFlow = ai.defineFlow(

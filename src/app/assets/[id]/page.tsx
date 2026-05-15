@@ -3,11 +3,11 @@
 
 import { use, useState, useEffect, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type MaintenanceLog, type EquipmentAsset, type AssetTemplate } from '@/lib/db';
+import { db, type MaintenanceLog, type EquipmentAsset, type AssetTemplate, type TechnicalAssembly, type TechnicalComponent } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, ChevronLeft, User, Sparkles, Loader2, Activity, Layers, Settings2, FolderOpen, FileDown, ExternalLink, BookOpen } from 'lucide-react';
+import { Plus, ChevronLeft, User, Sparkles, Loader2, Activity, Layers, Settings2, FolderOpen, FileDown, ExternalLink, BookOpen, Network, Zap, ShieldAlert, ClipboardList } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -90,10 +90,14 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
     
     setIsAiLoading(true);
     try {
+      const allComponents = (template.assemblies || []).flatMap(asm => asm.components);
       const result = await suggestMaintenancePrefill({
         description: logFormData.activityDescription,
         nomenclature: template.nomenclature,
-        components: template.components?.map(c => ({ name: c.name, measurements: c.measurements })) || []
+        components: allComponents.map(c => ({ 
+          name: c.name, 
+          measurements: (c.expectedMeasurements || []).map(m => `${m.name}: ${m.value}`).join(', ') 
+        }))
       });
       
       setLogFormData(prev => ({ ...prev, status: result.likelyStatus as any }));
@@ -123,7 +127,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
         componentSerials: editFormData.componentSerials || {},
       });
       setIsEditAssetOpen(false);
-      toast({ title: "Asset Updated", description: "Serialized record synchronized." });
+      toast({ title: "Asset Updated", description: "Record synchronized." });
     } catch (error) {
       toast({ title: "Update Failed", description: "Database error.", variant: "destructive" });
     } finally {
@@ -165,7 +169,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
       setIsAddLogOpen(false);
       setLogFormData({ technician: '', activityDescription: '', status: 'Ongoing', serviceRequestId: '', stepsTaken: [] });
       setStepsInput('');
-      toast({ title: "Log Recorded", description: "Event attached to asset history." });
+      toast({ title: "Log Recorded", description: "Record committed." });
     } catch (error) {
       toast({ title: "Error", description: "Failed to save log.", variant: "destructive" });
     } finally {
@@ -174,7 +178,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
   };
 
   if (asset === undefined) return <div className="p-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /></div>;
-  if (!asset) return <div className="p-20 text-center">Serialized Asset Not Found</div>;
+  if (!asset) return <div className="p-20 text-center">Asset Not Found</div>;
 
   return (
     <div className="space-y-6 pb-20">
@@ -182,21 +186,14 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
         <Link href="/assets" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
           <ChevronLeft className="h-4 w-4 mr-1" /> Unit Inventory
         </Link>
-        
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" onClick={() => exportAssetHistoryReport(asset, logs)} className="h-8 text-[9px] font-bold uppercase gap-1">
             <FileDown className="h-4 w-4" /> Export ERO
           </Button>
           <Dialog open={isEditAssetOpen} onOpenChange={setIsEditAssetOpen}>
-            <DialogTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 text-muted-foreground">
-                <Settings2 className="h-4 w-4 mr-1" /> Unit Config
-              </Button>
-            </DialogTrigger>
+            <DialogTrigger asChild><Button variant="ghost" size="sm" className="h-8 text-muted-foreground"><Settings2 className="h-4 w-4 mr-1" /> Config</Button></DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Edit Serialized Record</DialogTitle>
-              </DialogHeader>
+              <DialogHeader><DialogTitle>Edit Serialized Record</DialogTitle></DialogHeader>
               <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
                 <div className="grid gap-2">
                   <Label>Serial Number</Label>
@@ -211,42 +208,33 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                   <Input value={editFormData.currentServiceRequest || ''} onChange={(e) => setEditFormData({...editFormData, currentServiceRequest: e.target.value})} />
                 </div>
                 
-                {template?.components && template.components.length > 0 && (
-                  <div className="space-y-3">
-                    <Label className="text-xs uppercase font-bold text-primary">Sub-Component Serials (SL-3)</Label>
-                    {template.components.map((c, i) => (
-                      <div key={i} className="grid gap-1">
+                {template?.assemblies?.map((asm, aIdx) => (
+                  <div key={aIdx} className="space-y-3">
+                    <Label className="text-xs uppercase font-bold text-primary">{asm.name} Serials</Label>
+                    {asm.components.map((c, cIdx) => (
+                      <div key={c.id} className="grid gap-1">
                         <Label className="text-[10px] uppercase">{c.name}</Label>
                         <Input 
                           placeholder="Unique ID"
                           className="font-mono text-xs"
-                          value={editFormData.componentSerials?.[c.name] || ''} 
+                          value={editFormData.componentSerials?.[c.id] || ''} 
                           onChange={(e) => {
-                            const newSerials = { ...editFormData.componentSerials, [c.name]: e.target.value };
+                            const newSerials = { ...editFormData.componentSerials, [c.id]: e.target.value };
                             setEditFormData({...editFormData, componentSerials: newSerials});
                           }} 
                         />
                       </div>
                     ))}
                   </div>
-                )}
+                ))}
 
                 <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
-                  <div className="space-y-0.5">
-                    <Label>Deadlined Status</Label>
-                    <p className="text-[10px] text-muted-foreground">Force set as NMC / In-Work</p>
-                  </div>
+                  <Label>Deadlined Status</Label>
                   <Switch checked={!!editFormData.isInMaintenance} onCheckedChange={(checked) => setEditFormData({...editFormData, isInMaintenance: checked})} />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Local Unit Notes</Label>
-                  <Textarea value={editFormData.notes || ''} onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})} />
                 </div>
               </div>
               <DialogFooter>
-                <Button onClick={handleEditAsset} className="w-full" disabled={isUpdatingAsset}>
-                  {isUpdatingAsset ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Save Changes"}
-                </Button>
+                <Button onClick={handleEditAsset} className="w-full" disabled={isUpdatingAsset}>{isUpdatingAsset ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Save Changes"}</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -259,194 +247,112 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
             <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
               {template?.nomenclature || 'SERIALIZED UNIT'}
               {template && (
-                <Link href={`/templates?search=${template.nomenclature}`}>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary" title="View Technical Publication">
-                    <BookOpen className="h-4 w-4" />
-                  </Button>
-                </Link>
+                <Link href={`/templates?search=${template.nomenclature}`}><Button variant="ghost" size="icon" className="h-6 w-6"><BookOpen className="h-4 w-4" /></Button></Link>
               )}
             </h1>
             <p className="text-sm font-mono text-muted-foreground uppercase tracking-widest">SN: {asset.serialNumber}</p>
           </div>
-          <Badge variant={asset.isInMaintenance ? "destructive" : "secondary"}>
-            {asset.isInMaintenance ? "NMC / DEADLINED" : "FMC / READY"}
-          </Badge>
+          <Badge variant={asset.isInMaintenance ? "destructive" : "secondary"}>{asset.isInMaintenance ? "NMC" : "FMC"}</Badge>
         </div>
 
         <Card className="border-none shadow-sm bg-white">
           <CardContent className="p-4 grid grid-cols-2 gap-4 text-xs">
-            <div>
-              <p className="text-muted-foreground uppercase font-bold tracking-tighter mb-1">Custodian</p>
-              <p className="font-medium">{asset.owner}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground uppercase font-bold tracking-tighter mb-1">Active SR#</p>
-              <p className="font-mono">{asset.currentServiceRequest || "None"}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground uppercase font-bold tracking-tighter mb-1">NSN</p>
-              <p className="font-mono">{template?.nsn || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground uppercase font-bold tracking-tighter mb-1">TAMCN</p>
-              <p className="font-mono">{template?.tamcn || 'N/A'}</p>
-            </div>
-            {template?.components && template.components.length > 0 && (
-              <div className="col-span-2 pt-2 border-t mt-1">
-                <p className="text-muted-foreground uppercase font-bold tracking-tighter mb-2 flex items-center justify-between">
-                  <span className="flex items-center gap-1"><Layers className="h-3 w-3" /> Technical Doctrine (PUBS Specs)</span>
-                  <Link href={`/templates?search=${template.nomenclature}`} className="text-accent hover:underline flex items-center gap-0.5 lowercase text-[10px]">
-                    view full doc <ExternalLink className="h-2 w-2" />
-                  </Link>
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {template.components.map((c, i) => (
-                    <div key={i} className="bg-muted/30 p-2 rounded">
-                      <div className="flex justify-between items-start mb-0.5">
-                        <p className="font-bold text-[10px] truncate">{c.name}</p>
-                        {asset.componentSerials?.[c.name] && (
-                          <span className="text-[8px] font-mono bg-primary/10 px-1 rounded border border-primary/20">
-                            S/N: {asset.componentSerials[c.name]}
-                          </span>
+            <div><p className="text-muted-foreground uppercase font-bold mb-1">Custodian</p><p className="font-medium">{asset.owner}</p></div>
+            <div><p className="text-muted-foreground uppercase font-bold mb-1">Active SR#</p><p className="font-mono">{asset.currentServiceRequest || "None"}</p></div>
+            
+            <Accordion type="single" collapsible className="col-span-2 space-y-2 mt-2">
+              {template?.assemblies?.map((asm, idx) => (
+                <AccordionItem key={idx} value={`asm-${idx}`} className="border-none bg-muted/30 rounded-lg px-3">
+                  <AccordionTrigger className="hover:no-underline py-2 text-[10px] font-black uppercase"><span className="flex items-center gap-2"><Layers className="h-3.5 w-3.5" /> {asm.name}</span></AccordionTrigger>
+                  <AccordionContent className="space-y-2 pt-1 pb-3">
+                    {asm.components.map(comp => (
+                      <div key={comp.id} className="bg-white/60 p-2 rounded border border-border/50">
+                        <div className="flex justify-between items-start">
+                          <p className="font-bold text-[10px] uppercase">{comp.name}</p>
+                          {asset.componentSerials?.[comp.id] && (
+                            <Badge variant="outline" className="text-[8px] h-3.5 px-1 font-mono">{asset.componentSerials[comp.id]}</Badge>
+                          )}
+                        </div>
+                        {comp.purpose && <p className="text-[9px] text-muted-foreground mt-0.5">{comp.purpose}</p>}
+                        {comp.expectedMeasurements && comp.expectedMeasurements.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {comp.expectedMeasurements.map((m, mIdx) => (
+                              <span key={mIdx} className="text-[8px] bg-primary/5 px-1 rounded text-primary/70">{m.name}: {m.value}</span>
+                            ))}
+                          </div>
                         )}
                       </div>
-                      <p className="text-muted-foreground text-[9px] truncate">{c.measurements}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div className="col-span-2 pt-2 border-t mt-1">
-              <p className="text-muted-foreground uppercase font-bold tracking-tighter mb-1">Unit Remarks</p>
-              <p className="text-foreground">{asset.notes || "No additional records."}</p>
-            </div>
+                    ))}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
           </CardContent>
         </Card>
       </div>
 
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold flex items-center gap-2">
-            <Activity className="h-4 w-4 text-primary" />
-            ERO / Event History
-          </h2>
+          <h2 className="text-lg font-bold flex items-center gap-2"><Activity className="h-4 w-4 text-primary" /> ERO History</h2>
           <Dialog open={isAddLogOpen} onOpenChange={setIsAddLogOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="h-8">
-                <Plus className="h-4 w-4 mr-1" /> Log Entry
-              </Button>
-            </DialogTrigger>
+            <DialogTrigger asChild><Button size="sm" className="h-8"><Plus className="h-4 w-4 mr-1" /> Log Entry</Button></DialogTrigger>
             <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Technical Journal Entry</DialogTitle>
-              </DialogHeader>
+              <DialogHeader><DialogTitle>Technical Journal Entry</DialogTitle></DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label>Maintainer</Label>
-                    <Input placeholder="Rank / Name" value={logFormData.technician || ''} onChange={(e) => setLogFormData({...logFormData, technician: e.target.value})} />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Task SR#</Label>
-                    <Input placeholder="Service Request" value={logFormData.serviceRequestId || ''} onChange={(e) => setLogFormData({...logFormData, serviceRequestId: e.target.value})} />
-                  </div>
+                  <div className="grid gap-2"><Label>Maintainer</Label><Input placeholder="Rank / Name" value={logFormData.technician || ''} onChange={(e) => setLogFormData({...logFormData, technician: e.target.value})} /></div>
+                  <div className="grid gap-2"><Label>Task SR#</Label><Input placeholder="SR#" value={logFormData.serviceRequestId || ''} onChange={(e) => setLogFormData({...logFormData, serviceRequestId: e.target.value})} /></div>
                 </div>
-                
                 <div className="grid gap-2">
-                  <div className="flex items-center justify-between">
-                    <Label>Activity Description</Label>
-                    <Button variant="ghost" size="sm" onClick={handleMagicFill} disabled={isAiLoading || !logFormData.activityDescription?.trim()} className="h-6 text-[10px] text-accent font-bold p-0">
-                      {isAiLoading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
-                      Apply Doctrine (AI)
-                    </Button>
-                  </div>
-                  <Textarea placeholder="Fault analysis or repair details..." className="h-20" value={logFormData.activityDescription || ''} onChange={(e) => setLogFormData({...logFormData, activityDescription: e.target.value})} />
+                  <div className="flex items-center justify-between"><Label>Activity Description</Label><Button variant="ghost" size="sm" onClick={handleMagicFill} disabled={isAiLoading} className="h-6 text-[10px] text-accent font-bold p-0">{isAiLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />} Assist (AI)</Button></div>
+                  <Textarea placeholder="Task details..." className="h-20" value={logFormData.activityDescription || ''} onChange={(e) => setLogFormData({...logFormData, activityDescription: e.target.value})} />
                 </div>
-
-                <div className="grid gap-2">
-                  <Label>Repair Actions & Specs (one per line)</Label>
-                  <Textarea placeholder="Step 1: Analyzed power grid...&#10;Step 2: Measurement at J3: 12.1VDC..." className="h-40" value={stepsInput} onChange={(e) => setStepsInput(e.target.value)} />
-                  <p className="text-[10px] text-muted-foreground">AI pre-fill leverages specifications defined in the PUBS template.</p>
-                </div>
-
+                <div className="grid gap-2"><Label>Repair Actions (one per line)</Label><Textarea className="h-40" value={stepsInput} onChange={(e) => setStepsInput(e.target.value)} /></div>
                 <div className="grid gap-2">
                   <Label>Job Status</Label>
                   <div className="flex flex-wrap gap-2">
                     {['Ongoing', 'Awaiting Parts', 'Resolved'].map((s) => (
-                      <Badge key={s} variant={logFormData.status === s ? 'default' : 'outline'} className="cursor-pointer" onClick={() => setLogFormData({...logFormData, status: s as any})}>
-                        {s}
-                      </Badge>
+                      <Badge key={s} variant={logFormData.status === s ? 'default' : 'outline'} className="cursor-pointer" onClick={() => setLogFormData({...logFormData, status: s as any})}>{s}</Badge>
                     ))}
                   </div>
                 </div>
               </div>
-              <DialogFooter>
-                <Button onClick={handleAddLog} className="w-full" disabled={isSaving}>
-                  {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Commit Record"}
-                </Button>
-              </DialogFooter>
+              <DialogFooter><Button onClick={handleAddLog} className="w-full" disabled={isSaving}>{isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Commit Record"}</Button></DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
 
         <div className="space-y-4">
-          {Object.keys(groupedLogs).length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-xl border border-dashed border-primary/20">
-              <p className="text-sm text-muted-foreground italic">No historical events recorded for this unit.</p>
-            </div>
-          ) : (
-            <Accordion type="single" collapsible className="space-y-4" defaultValue={asset.currentServiceRequest || Object.keys(groupedLogs)[0]}>
-              {Object.entries(groupedLogs).map(([srId, srLogs]) => (
-                <AccordionItem key={srId} value={srId} className="border-none">
-                  <AccordionTrigger className="bg-white rounded-lg shadow-sm px-4 py-3 hover:no-underline hover:bg-muted/5 transition-all">
-                    <div className="flex items-center gap-3 text-left">
-                      <div className="h-8 w-8 rounded-full bg-primary/5 flex items-center justify-center">
-                        <FolderOpen className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-primary">SR: {srId}</p>
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-tighter">
-                          {srLogs.length} Records • Latest: {format(srLogs[0].timestamp, 'MMM d')}
-                        </p>
-                      </div>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="pt-3 space-y-3">
-                    {srLogs.map((log) => (
-                      <Card key={log.id} className="border-none shadow-sm bg-white/60 ml-4">
-                        <CardHeader className="p-3 bg-muted/20 pb-2 flex-row justify-between items-center space-y-0">
-                          <span className="text-[10px] font-bold text-primary flex items-center gap-1.5">
-                            <User className="h-3 w-3" /> {log.technician}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">
-                            {format(log.timestamp, 'MMM d, HH:mm')}
-                          </span>
-                        </CardHeader>
-                        <CardContent className="p-3 space-y-2">
-                          <div className="flex justify-between items-start">
-                            <p className="text-xs font-bold leading-tight">{log.activityDescription}</p>
-                            <Badge variant={log.status === 'Resolved' ? 'default' : 'outline'} className="text-[8px] h-4">
-                              {log.status}
-                            </Badge>
+          {Object.entries(groupedLogs).map(([srId, srLogs]) => (
+            <Accordion key={srId} type="single" collapsible className="bg-white rounded-lg shadow-sm">
+              <AccordionItem value={srId} className="border-none px-4">
+                <AccordionTrigger className="hover:no-underline py-3">
+                   <div className="flex items-center gap-3 text-left">
+                     <FolderOpen className="h-4 w-4 text-primary" />
+                     <div><p className="text-sm font-bold text-primary">SR: {srId}</p><p className="text-[10px] text-muted-foreground uppercase">{srLogs.length} Records</p></div>
+                   </div>
+                </AccordionTrigger>
+                <AccordionContent className="space-y-3 pb-4">
+                  {srLogs.map((log) => (
+                    <Card key={log.id} className="border-none bg-muted/20">
+                      <CardHeader className="p-3 pb-2 flex-row justify-between items-center space-y-0">
+                        <span className="text-[10px] font-bold text-primary flex items-center gap-1.5"><User className="h-3 w-3" /> {log.technician}</span>
+                        <span className="text-[10px] text-muted-foreground">{format(log.timestamp, 'MMM d, HH:mm')}</span>
+                      </CardHeader>
+                      <CardContent className="p-3 pt-0 space-y-2">
+                        <p className="text-xs font-bold leading-tight">{log.activityDescription}</p>
+                        {log.stepsTaken?.length > 0 && (
+                          <div className="bg-white/60 p-2 rounded text-[11px] space-y-1">
+                            {log.stepsTaken.map((step, i) => <div key={i} className="flex gap-2"><span className="text-muted-foreground font-mono">{i + 1}.</span><span>{step}</span></div>)}
                           </div>
-                          {log.stepsTaken && log.stepsTaken.length > 0 && (
-                            <div className="bg-muted/30 p-2 rounded text-[11px] space-y-1">
-                              {log.stepsTaken.map((step, i) => (
-                                <div key={i} className="flex gap-2">
-                                  <span className="text-muted-foreground font-mono">{i + 1}.</span>
-                                  <span>{step}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </AccordionContent>
+              </AccordionItem>
             </Accordion>
-          )}
+          ))}
         </div>
       </div>
     </div>
