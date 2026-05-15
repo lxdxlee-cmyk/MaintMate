@@ -4,14 +4,15 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, ClipboardList, ArrowRight, History, Clock, Zap, Shield, AlertTriangle, Database, FileDown, Info } from 'lucide-react';
+import { Package, ClipboardList, ArrowRight, History, Clock, Zap, Shield, AlertTriangle, Database, FileDown, Info, FileStack } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
-import { exportReadinessReport } from '@/lib/pdf-export';
+import { exportReadinessReport, exportFullUnitJournal } from '@/lib/pdf-export';
+import { toast } from '@/hooks/use-toast';
 
 const APP_VERSION = "v1.2.6-SECURE";
 
@@ -33,38 +34,87 @@ export default function Home() {
     return { assetCount, logCount, deadlineCount, fmcCount };
   });
 
+  const handleMasterExport = async () => {
+    if (!stats || stats.assetCount === 0) {
+      toast({ title: "No Data", description: "Induct gear before exporting journal.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      toast({ title: "Generating Journal", description: "Compiling local history..." });
+      
+      const assets = await db.assets.toArray();
+      const logs = await db.logs.toArray();
+      const templates = await db.templates.toArray();
+      
+      const enrichedAssets = await Promise.all(assets.map(async a => {
+        const template = a.templateId ? await db.templates.get(a.templateId) : undefined;
+        return { ...a, template };
+      }));
+
+      const enrichedLogs = await Promise.all(logs.map(async l => {
+        const asset = await db.assets.get(l.assetId);
+        const template = asset?.templateId ? await db.templates.get(asset.templateId) : undefined;
+        return { ...l, asset, template };
+      }));
+
+      await exportFullUnitJournal({
+        assets: enrichedAssets as any,
+        logs: enrichedLogs as any,
+        templates,
+        stats
+      });
+
+      toast({ title: "Export Complete", description: "Master Technical Journal generated." });
+    } catch (error) {
+      toast({ title: "Export Failed", description: "Could not compile PDF report.", variant: "destructive" });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <header className="border-b-4 border-primary pb-2">
         <div className="flex justify-between items-start">
           <div className="space-y-1">
-            <h1 className="text-3xl font-black tracking-tighter text-primary flex items-center gap-2">
-              <Shield className="h-8 w-8" />
-              MAINTAIN-MATE
-            </h1>
+            <div className="flex items-center gap-2">
+              <Shield className="h-8 w-8 text-primary" />
+              <h1 className="text-3xl font-black tracking-tighter text-primary">MAINTAIN-MATE</h1>
+            </div>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-[8px] border-primary/30 text-primary/60 font-mono py-0 uppercase">
                 BUILD: {APP_VERSION}
               </Badge>
+              <Badge variant="secondary" className="text-[8px] bg-green-500/10 text-green-600 border-green-200 font-mono py-0 uppercase">
+                DEPLOYMENT TEST OK
+              </Badge>
             </div>
           </div>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex flex-col items-end gap-1">
+          <div className="flex flex-col items-end gap-2">
+             <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
                   <div className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded border border-green-200 cursor-help">
                     <Database className="h-3 w-3" />
                     LOCAL DATA
                   </div>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="text-xs">No cloud sync. Data stored on this device only.</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">No cloud sync. Data stored on this device only.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleMasterExport}
+              className="h-8 text-[9px] font-black uppercase tracking-widest gap-2 bg-accent text-accent-foreground border-accent hover:bg-accent/90"
+            >
+              <FileStack className="h-3.5 w-3.5" />
+              Master Export
+            </Button>
+          </div>
         </div>
-        <div className="flex justify-between items-center mt-2">
+        <div className="flex justify-between items-center mt-3">
           <Badge variant="outline" className="text-[9px] border-primary text-primary font-mono uppercase font-black">
             SECURE LOCAL JOURNAL
           </Badge>
@@ -73,7 +123,7 @@ export default function Home() {
               SYSTEM OK
             </Badge>
             <Badge variant="secondary" className="text-[9px] bg-blue-500/10 text-blue-600 border-blue-200 font-mono">
-              DEPLOYMENT OK
+              READY
             </Badge>
           </div>
         </div>
@@ -82,7 +132,7 @@ export default function Home() {
       <div className="flex justify-between items-center">
         <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Readiness Snapshot</h2>
         <Button variant="ghost" size="sm" onClick={() => stats && exportReadinessReport(stats)} className="h-6 text-[9px] font-bold uppercase gap-1">
-          <FileDown className="h-3 w-3" /> Export Report
+          <FileDown className="h-3 w-3" /> Export Summary
         </Button>
       </div>
 
