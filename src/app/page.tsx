@@ -32,6 +32,9 @@ export default function Home() {
           <Badge variant="outline" className="text-[9px] border-primary text-primary font-mono">
             SECURE LOCAL JOURNAL
           </Badge>
+          <Badge variant="secondary" className="text-[9px] bg-green-500/10 text-green-600 border-green-200 font-mono">
+            DEPLOYMENT TEST OK
+          </Badge>
         </div>
       </header>
 
