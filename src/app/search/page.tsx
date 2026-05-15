@@ -17,7 +17,11 @@ export default function SearchPage() {
   const assetResults = useLiveQuery(() => {
     if (!query) return [];
     return db.assets
-      .filter(a => a.type.toLowerCase().includes(query.toLowerCase()) || a.identifier.toLowerCase().includes(query.toLowerCase()))
+      .filter(a => 
+        (a.nomenclature || '').toLowerCase().includes(query.toLowerCase()) || 
+        (a.serialNumber || '').toLowerCase().includes(query.toLowerCase()) ||
+        (a.nsn || '').toLowerCase().includes(query.toLowerCase())
+      )
       .limit(20)
       .toArray();
   }, [query]);
@@ -25,7 +29,12 @@ export default function SearchPage() {
   const logResults = useLiveQuery(async () => {
     if (!query) return [];
     const logs = await db.logs
-      .filter(l => l.faultObserved.toLowerCase().includes(query.toLowerCase()) || l.repairActions.toLowerCase().includes(query.toLowerCase()) || l.technician.toLowerCase().includes(query.toLowerCase()))
+      .filter(l => 
+        (l.activityDescription || '').toLowerCase().includes(query.toLowerCase()) || 
+        (l.technician || '').toLowerCase().includes(query.toLowerCase()) ||
+        (l.serviceRequestId || '').toLowerCase().includes(query.toLowerCase()) ||
+        (l.stepsTaken || []).some(step => step.toLowerCase().includes(query.toLowerCase()))
+      )
       .limit(20)
       .toArray();
     
@@ -67,8 +76,8 @@ export default function SearchPage() {
                     {assetResults.map(asset => (
                       <Link key={asset.id} href={`/assets/${asset.id}`} className="block p-3 bg-white rounded-lg border border-border/50 hover:bg-muted transition-colors">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-semibold">{asset.type}</span>
-                          <span className="text-xs font-mono text-muted-foreground">{asset.identifier}</span>
+                          <span className="text-sm font-semibold">{asset.nomenclature}</span>
+                          <span className="text-xs font-mono text-muted-foreground">{asset.serialNumber}</span>
                         </div>
                       </Link>
                     ))}
@@ -87,11 +96,11 @@ export default function SearchPage() {
                         <CardContent className="p-3 space-y-2">
                           <div className="flex justify-between items-start">
                             <span className="text-xs font-bold text-primary truncate max-w-[150px]">
-                              {log.asset?.type} ({log.asset?.identifier})
+                              {log.asset?.nomenclature} (SN: {log.asset?.serialNumber})
                             </span>
                             <span className="text-[10px] text-muted-foreground">{format(log.timestamp, 'MMM d, yy')}</span>
                           </div>
-                          <p className="text-sm font-medium line-clamp-1">{log.faultObserved}</p>
+                          <p className="text-sm font-medium line-clamp-1">{log.activityDescription}</p>
                           <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
                             <span className="flex items-center gap-1"><User className="h-2.5 w-2.5" /> {log.technician}</span>
                             <Link href={`/assets/${log.assetId}`} className="text-accent font-bold ml-auto flex items-center gap-1">
@@ -105,7 +114,7 @@ export default function SearchPage() {
                 </section>
               )}
 
-              {!assetResults?.length && !logResults?.length && (
+              {(!assetResults || assetResults.length === 0) && (!logResults || logResults.length === 0) && (
                 <div className="text-center py-20 text-muted-foreground">
                   <p className="text-sm italic">No data matched your query.</p>
                 </div>
@@ -125,8 +134,8 @@ export default function SearchPage() {
           <div className="grid gap-2 mt-4">
             {assetResults?.map(asset => (
               <Link key={asset.id} href={`/assets/${asset.id}`} className="block p-4 bg-white rounded-xl border border-border/50 shadow-sm">
-                <p className="font-bold text-primary">{asset.type}</p>
-                <p className="text-xs text-muted-foreground font-mono">{asset.identifier}</p>
+                <p className="font-bold text-primary">{asset.nomenclature}</p>
+                <p className="text-xs text-muted-foreground font-mono">{asset.serialNumber}</p>
               </Link>
             ))}
           </div>
@@ -137,8 +146,13 @@ export default function SearchPage() {
             {logResults?.map(log => (
               <Card key={log.id} className="border-none shadow-sm">
                 <CardContent className="p-4 space-y-2">
-                   <p className="text-sm font-bold">{log.faultObserved}</p>
-                   <p className="text-xs text-muted-foreground italic line-clamp-2">"{log.repairActions}"</p>
+                   <div className="flex justify-between">
+                     <p className="text-sm font-bold">{log.activityDescription}</p>
+                     <p className="text-[10px] text-muted-foreground">{format(log.timestamp, 'MMM d')}</p>
+                   </div>
+                   <p className="text-xs text-muted-foreground italic line-clamp-2">
+                     {log.stepsTaken?.join(', ') || 'No steps recorded.'}
+                   </p>
                 </CardContent>
               </Card>
             ))}

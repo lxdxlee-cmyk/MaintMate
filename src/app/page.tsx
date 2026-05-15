@@ -61,7 +61,9 @@ export default function Home() {
         </div>
 
         <div className="space-y-3">
-          {recentLogs?.length === 0 ? (
+          {recentLogs === undefined ? (
+            <div className="flex justify-center py-12"><Clock className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : recentLogs.length === 0 ? (
             <div className="text-center py-12 bg-white rounded-xl border border-dashed border-border">
               <Clock className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-30" />
               <p className="text-sm text-muted-foreground">No maintenance logs yet.</p>
@@ -70,7 +72,7 @@ export default function Home() {
               </Link>
             </div>
           ) : (
-            recentLogs?.map((log) => (
+            recentLogs.map((log) => (
               <Card key={log.id} className="overflow-hidden border-none shadow-sm hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex justify-between items-start mb-2">
@@ -81,10 +83,10 @@ export default function Home() {
                       {formatDistanceToNow(log.timestamp)} ago
                     </span>
                   </div>
-                  <h3 className="font-medium text-sm mb-1">{log.faultObserved}</h3>
+                  <h3 className="font-medium text-sm mb-1">{log.activityDescription}</h3>
                   <div className="flex items-center gap-2">
-                    <Badge variant={log.outcome === 'Resolved' ? 'default' : 'secondary'} className="text-[10px] h-5">
-                      {log.outcome}
+                    <Badge variant={log.status === 'Resolved' ? 'default' : 'secondary'} className="text-[10px] h-5">
+                      {log.status}
                     </Badge>
                   </div>
                 </CardContent>
