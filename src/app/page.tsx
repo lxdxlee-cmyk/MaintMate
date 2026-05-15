@@ -112,7 +112,7 @@ export default function Home() {
       <section className="space-y-3">
         <h2 className="text-sm font-black flex items-center gap-2 border-l-4 border-primary pl-3 tracking-widest uppercase">
           <Zap className="h-4 w-4 text-primary" />
-          Tactical Operations
+          Quick Operations
         </h2>
         <div className="grid grid-cols-1 gap-2">
           <Link href="/assets" className="flex items-center p-4 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-lg">
