@@ -70,6 +70,29 @@ export const exportAssetHistoryReport = (asset: EquipmentAsset & { template?: As
   doc.save(`Asset_History_${asset.serialNumber}_${date}.pdf`);
 };
 
+export const exportMasterLogs = (logs: (MaintenanceLog & { asset?: EquipmentAsset; template?: AssetTemplate })[]) => {
+  const doc = new jsPDF('l');
+  const date = format(new Date(), 'yyyyMMdd_HHmm');
+  doc.setFontSize(18);
+  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.text('TECHNICAL HISTORY (ERO) MASTER LOG', 148, 20, { align: 'center' });
+  
+  autoTable(doc, {
+    startY: 30,
+    head: [['Date', 'Asset / Serial', 'SR#', 'Maintainer', 'Activity', 'Status']],
+    body: logs.map(l => [
+      format(l.timestamp, 'MMM d, yy'),
+      `${l.template?.nomenclature ?? 'Unknown'} / ${l.asset?.serialNumber ?? 'N/A'}`,
+      l.serviceRequestId || 'N/A',
+      l.technician,
+      l.activityDescription,
+      l.status
+    ]),
+    headStyles: { fillColor: primaryColor },
+  });
+  doc.save(`Technical_History_${date}.pdf`);
+};
+
 export const exportPubsCatalog = (templates: AssetTemplate[]) => {
   const doc = new jsPDF();
   const date = format(new Date(), 'yyyyMMdd_HHmm');
