@@ -7,8 +7,8 @@ export interface TechnicalConnection {
   connectorType?: string; // e.g. BNC, RJ45, DB9
   sourceComponentId: string;
   destComponentId: string;
-  sourcePort?: string;
-  destPort?: string;
+  sourcePort?: string; // Added: specific port on source
+  destPort?: string;   // Added: specific port on destination
   cableId?: string;
   notes?: string;
 }
@@ -35,7 +35,7 @@ export interface TechnicalComponent {
   alias?: string;
   purpose?: string;
   notes?: string;
-  ports?: string[];
+  ports?: string[]; // Added: list of plug/port labels
   expectedMeasurements?: ExpectedMeasurement[];
   knownFaults?: KnownFault[];
   procedures?: TechnicalProcedure[];
@@ -100,14 +100,14 @@ export class MaintainMateDB extends Dexie {
   constructor() {
     super('MaintainMateDB');
     
-    // Initial and intermediate versions
-    this.version(9).stores({
+    // Version 11: Added Ports to components and port-specific connection tracking
+    this.version(11).stores({
       assets: '++id, templateId, serialNumber, owner, isInMaintenance, createdAt',
       logs: '++id, assetId, technician, status, timestamp, serviceRequestId',
       templates: '++id, nomenclature, nsn, tamcn'
     });
 
-    // Version 10: Relationship-driven topology refactor
+    // Intermediate migration for version 10 was kept for historical reference
     this.version(10).stores({
       assets: '++id, templateId, serialNumber, owner, isInMaintenance, createdAt',
       logs: '++id, assetId, technician, status, timestamp, serviceRequestId',
@@ -116,8 +116,6 @@ export class MaintainMateDB extends Dexie {
       const templates = await trans.table('templates').toArray();
       for (const template of templates) {
         const globalConnections: TechnicalConnection[] = template.connections || [];
-        
-        // Migrate assembly-nested connections to top-level if any exist
         if (template.assemblies) {
           template.assemblies.forEach((asm: any) => {
             if (asm.connections && Array.isArray(asm.connections)) {
@@ -126,7 +124,6 @@ export class MaintainMateDB extends Dexie {
             }
           });
         }
-        
         await trans.table('templates').update(template.id, {
           connections: globalConnections,
           assemblies: template.assemblies

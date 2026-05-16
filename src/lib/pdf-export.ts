@@ -84,11 +84,11 @@ export const exportPubsCatalog = (templates: AssetTemplate[]) => {
     doc.setTextColor(0);
     doc.text(`NSN: ${t.nsn} | TAMCN: ${t.tamcn}`, 15, 37);
     doc.setFontSize(11);
-    doc.text('Freeform Technical Knowledge:', 15, 47);
+    doc.text('Field Technical Knowledge:', 15, 47);
     const splitText = doc.splitTextToSize(t.technicalKnowledge || 'No field notes recorded.', 180);
     doc.text(splitText, 15, 53);
 
-    let currentY = 55 + (splitText.length * 5);
+    let currentY = 60 + (splitText.length * 5);
     
     // List Assemblies and Components
     t.assemblies.forEach(assembly => {
@@ -100,11 +100,11 @@ export const exportPubsCatalog = (templates: AssetTemplate[]) => {
       
       autoTable(doc, {
         startY: currentY,
-        head: [['Component', 'Purpose', 'Specs']],
+        head: [['Component', 'Ports', 'Specs']],
         body: assembly.components.map(c => [
-          c.name, 
-          c.purpose || '-', 
-          (c.expectedMeasurements || []).map(m => `${m.name}: ${m.value}`).join(', ') || 'N/A'
+          c.name,
+          c.ports?.join(', ') || '-',
+          (c.expectedMeasurements || []).map(m => `${m.name}: ${m.value}`).join(', ') || '-'
         ]),
         headStyles: { fillColor: [80, 80, 80] },
       });
@@ -123,15 +123,16 @@ export const exportPubsCatalog = (templates: AssetTemplate[]) => {
       
       autoTable(doc, {
         startY: currentY,
-        head: [['Source', 'Link', 'Destination', 'Connector', 'Cable ID']],
+        head: [['Source', 'Port', 'Dest', 'Port', 'Type', 'Cable ID']],
         body: t.connections.map(conn => {
           const src = allComponents.find(c => c.id === conn.sourceComponentId);
           const dest = allComponents.find(c => c.id === conn.destComponentId);
           return [
             src?.name || 'Unknown',
-            conn.type,
+            conn.sourcePort || '-',
             dest?.name || 'Unknown',
-            conn.connectorType || '-',
+            conn.destPort || '-',
+            conn.type,
             conn.cableId || '-'
           ];
         }),
@@ -151,7 +152,7 @@ export const exportMasterLogs = (logs: (MaintenanceLog & { asset?: EquipmentAsse
   doc.text('MASTER MAINTENANCE LOG (ERO)', 148, 20, { align: 'center' });
   autoTable(doc, {
     startY: 30,
-    head: [['Date', 'Asset / Serial', 'SR#', 'Technician', 'Action', 'Status']],
+    head: [['Date', 'Asset / Serial', 'SR#', 'Maintainer', 'Action', 'Status']],
     body: logs.map(l => [
       format(l.timestamp, 'MMM d, yy'),
       `${l.template?.nomenclature ?? 'Unknown'} / ${l.asset?.serialNumber ?? 'N/A'}`,
@@ -211,7 +212,7 @@ export const exportFullUnitJournal = async (data: {
   doc.text('SECTION 2: MAINTENANCE HISTORY (ERO)', 15, 20);
   autoTable(doc, {
     startY: 30,
-    head: [['Date', 'Asset / Serial', 'SR#', 'Technician', 'Activity', 'Status']],
+    head: [['Date', 'Asset / Serial', 'SR#', 'Maintainer', 'Activity', 'Status']],
     body: data.logs.map(l => [
       format(l.timestamp, 'MMM d, yy'),
       `${l.template?.nomenclature ?? 'Unknown'} / ${l.asset?.serialNumber ?? 'N/A'}`,

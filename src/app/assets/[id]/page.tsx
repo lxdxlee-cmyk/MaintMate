@@ -7,7 +7,7 @@ import { db, type MaintenanceLog, type EquipmentAsset, type AssetTemplate, type 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, ChevronLeft, User, Sparkles, Loader2, Layers, Settings2, FolderOpen, FileDown, BookOpen, Network, Zap, ShieldAlert, ClipboardList, Cable, Target, MapPin } from 'lucide-react';
+import { Plus, ChevronLeft, User, Sparkles, Loader2, Layers, Settings2, FolderOpen, FileDown, BookOpen, Network, Zap, ShieldAlert, ClipboardList, Cable, Target, MapPin, Activity, Tag } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -146,7 +146,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
 
   const handleAddLog = async () => {
     if (!logFormData.activityDescription?.trim() || !logFormData.technician?.trim()) {
-      toast({ title: "Validation", description: "Technician and description required.", variant: "destructive" });
+      toast({ title: "Validation", description: "Maintainer and description required.", variant: "destructive" });
       return;
     }
 
@@ -170,7 +170,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
           isInMaintenance: false,
           historicalServiceRequests: [...(asset.historicalServiceRequests || []), asset.currentServiceRequest || ''].filter(s => s),
           currentServiceRequest: '',
-          maintenanceLocation: '' // Clear location when ready
+          maintenanceLocation: '' 
         });
       } else if (srId && !asset?.currentServiceRequest) {
         await db.assets.update(assetId, { currentServiceRequest: srId, isInMaintenance: true });
@@ -214,8 +214,8 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                   <Input className="h-8" value={editFormData.owner || ''} onChange={(e) => setEditFormData({...editFormData, owner: e.target.value})} />
                 </div>
                 <div className="grid gap-2">
-                  <Label className="text-[10px] uppercase font-bold">Maintenance Location (Shop/Section)</Label>
-                  <Input className="h-8" value={editFormData.maintenanceLocation || ''} placeholder="e.g. ELMAINT Shop" onChange={(e) => setEditFormData({...editFormData, maintenanceLocation: e.target.value})} />
+                  <Label className="text-[10px] uppercase font-bold">Maintenance Location</Label>
+                  <Input className="h-8" value={editFormData.maintenanceLocation || ''} placeholder="e.g. Shop B" onChange={(e) => setEditFormData({...editFormData, maintenanceLocation: e.target.value})} />
                 </div>
                 <div className="grid gap-2">
                   <Label className="text-[10px] uppercase font-bold">Active SR#</Label>
@@ -317,6 +317,15 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                               )}
                             </div>
                             {comp.purpose && <p className="text-[9px] text-muted-foreground mt-0.5 font-medium">{comp.purpose}</p>}
+                            
+                            {comp.ports && comp.ports.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                {comp.ports.map((p, pIdx) => (
+                                  <span key={pIdx} className="text-[8px] bg-muted px-1.5 rounded-sm font-mono border uppercase">{p}</span>
+                                ))}
+                              </div>
+                            )}
+
                             {comp.expectedMeasurements && comp.expectedMeasurements.length > 0 && (
                               <div className="mt-2 flex flex-wrap gap-1">
                                 {comp.expectedMeasurements.map((m, mIdx) => (
@@ -334,7 +343,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
 
               <AccordionItem value="system-topology" className="border-2 rounded-lg px-3 bg-muted/20">
                 <AccordionTrigger className="hover:no-underline py-2.5 text-[10px] font-black uppercase tracking-tight">
-                  <span className="flex items-center gap-2"><Cable className="h-3.5 w-3.5" /> Signal Paths / Topology</span>
+                  <span className="flex items-center gap-2"><Cable className="h-3.5 w-3.5" /> System Topology</span>
                 </AccordionTrigger>
                 <AccordionContent className="space-y-4 pt-1 pb-4">
                   {template?.connections && template.connections.length > 0 ? (
@@ -345,11 +354,17 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                         return (
                           <div key={conn.id} className="p-2 bg-white rounded border border-primary/20 text-[9px] space-y-1">
                             <div className="flex items-center justify-between font-bold">
-                              <span className="uppercase text-primary">{source?.name || 'SRC'}</span>
+                              <div className="flex flex-col">
+                                <span className="uppercase text-primary">{source?.name || 'SRC'}</span>
+                                {conn.sourcePort && <span className="text-[8px] font-mono text-muted-foreground">PORT: {conn.sourcePort}</span>}
+                              </div>
                               <Network className="h-2.5 w-2.5 text-muted-foreground" />
-                              <span className="uppercase text-primary">{dest?.name || 'DEST'}</span>
+                              <div className="flex flex-col items-end">
+                                <span className="uppercase text-primary">{dest?.name || 'DEST'}</span>
+                                {conn.destPort && <span className="text-[8px] font-mono text-muted-foreground">PORT: {conn.destPort}</span>}
+                              </div>
                             </div>
-                            <div className="flex gap-2 text-muted-foreground font-mono uppercase">
+                            <div className="flex gap-2 text-muted-foreground font-mono uppercase border-t border-dashed pt-1 mt-1">
                               <span className="bg-muted px-1 rounded">{conn.type}</span>
                               {conn.connectorType && <span>CON: {conn.connectorType}</span>}
                               {conn.cableId && <span>CABLE: {conn.cableId}</span>}
@@ -360,7 +375,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                       })}
                     </div>
                   ) : (
-                    <p className="text-[10px] text-muted-foreground italic text-center py-2">No cross-assembly routing defined in PUBS.</p>
+                    <p className="text-[10px] text-muted-foreground italic text-center py-2">No system topology defined in doctrine.</p>
                   )}
                 </AccordionContent>
               </AccordionItem>

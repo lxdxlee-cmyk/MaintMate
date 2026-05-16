@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, BookOpen, Trash2, Search, Loader2, Layers, Edit, FileDown, X, Network, Zap, ShieldAlert, ClipboardList, Cable } from 'lucide-react';
+import { Plus, BookOpen, Trash2, Search, Loader2, Layers, Edit, FileDown, X, Network, Zap, ShieldAlert, ClipboardList, Cable, Tag } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
@@ -112,7 +112,6 @@ function TemplatesContent() {
     setIsEditOpen(true);
   };
 
-  // Integrity Cleanup: Remove connections referencing non-existent components
   const cleanupOrphanedConnections = (assemblies: TechnicalAssembly[], connections: TechnicalConnection[]) => {
     const validComponentIds = new Set(assemblies.flatMap(a => a.components).map(c => c.id));
     return connections.filter(conn => 
@@ -129,7 +128,6 @@ function TemplatesContent() {
 
     setIsSaving(true);
     try {
-      // Run cleanup before saving
       const cleanedConnections = cleanupOrphanedConnections(formData.assemblies || [], formData.connections || []);
       
       const payload = {
@@ -330,9 +328,9 @@ function PubForm({
                     <Zap className="h-3 w-3" />
                     <Label className="text-[10px] uppercase font-black">Components</Label>
                   </div>
-                  <div className="grid gap-3">
+                  <div className="grid gap-4">
                     {asm.components?.map((comp: TechnicalComponent, cIdx: number) => (
-                      <div key={comp.id} className="p-3 border rounded-lg bg-muted/10 space-y-3">
+                      <div key={comp.id} className="p-3 border rounded-lg bg-muted/10 space-y-4">
                         <div className="flex items-center gap-2">
                           <Input 
                             placeholder="Component Name"
@@ -352,6 +350,24 @@ function PubForm({
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
+                        
+                        <div className="grid gap-2">
+                          <Label className="text-[9px] uppercase font-bold flex items-center gap-1">
+                            <Tag className="h-2.5 w-2.5" /> Plugs / Ports (e.g. J1, RF-OUT)
+                          </Label>
+                          <Input 
+                            placeholder="Add ports (comma separated)..." 
+                            className="h-7 text-[10px] font-mono"
+                            value={comp.ports?.join(', ') || ''}
+                            onChange={(e) => {
+                              const ports = e.target.value.split(',').map(p => p.trim()).filter(p => p !== '');
+                              const updated = [...formData.assemblies];
+                              updated[idx].components[cIdx].ports = ports;
+                              setFormData({...formData, assemblies: updated});
+                            }}
+                          />
+                        </div>
+
                         <div className="grid grid-cols-2 gap-3">
                            <div className="space-y-1">
                              <Label className="text-[9px] uppercase font-bold">Purpose / Tech Specs</Label>
@@ -403,7 +419,7 @@ function PubForm({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <Label className="text-[11px] uppercase font-black text-primary flex items-center gap-2">
-            <Cable className="h-4 w-4" /> System Topology (Cross-Assembly Paths)
+            <Cable className="h-4 w-4" /> System Topology (Global Wiring)
           </Label>
           <Button variant="outline" size="sm" onClick={addGlobalConnection} className="h-7 text-[9px] uppercase font-bold">
             <Plus className="h-3 w-3 mr-1" /> Add Wire/Signal Path
@@ -411,106 +427,143 @@ function PubForm({
         </div>
         
         <div className="grid gap-3">
-          {formData.connections?.map((conn: TechnicalConnection, connIdx: number) => (
-            <div key={conn.id} className="p-3 border-2 border-primary/20 rounded-lg bg-primary/5 space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-[8px] uppercase font-bold">Source Component</Label>
-                  <Select 
-                    value={conn.sourceComponentId} 
-                    onValueChange={(val) => {
-                      const updated = [...(formData.connections || [])];
-                      updated[connIdx].sourceComponentId = val;
-                      setFormData({...formData, connections: updated});
-                    }}
-                  >
-                    <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select..." /></SelectTrigger>
-                    <SelectContent>
-                      {allComponents.map((c: TechnicalComponent) => <SelectItem key={c.id} value={c.id} className="text-xs">{c.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+          {formData.connections?.map((conn: TechnicalConnection, connIdx: number) => {
+            const sourceComp = allComponents.find(c => c.id === conn.sourceComponentId);
+            const destComp = allComponents.find(c => c.id === conn.destComponentId);
+
+            return (
+              <div key={conn.id} className="p-3 border-2 border-primary/20 rounded-lg bg-primary/5 space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-2">
+                    <Label className="text-[8px] uppercase font-bold">Source Component</Label>
+                    <Select 
+                      value={conn.sourceComponentId} 
+                      onValueChange={(val) => {
+                        const updated = [...(formData.connections || [])];
+                        updated[connIdx].sourceComponentId = val;
+                        updated[connIdx].sourcePort = undefined;
+                        setFormData({...formData, connections: updated});
+                      }}
+                    >
+                      <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectContent>
+                        {allComponents.map((c: TechnicalComponent) => <SelectItem key={c.id} value={c.id} className="text-xs">{c.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    {sourceComp?.ports && sourceComp.ports.length > 0 && (
+                      <Select 
+                        value={conn.sourcePort} 
+                        onValueChange={(val) => {
+                          const updated = [...(formData.connections || [])];
+                          updated[connIdx].sourcePort = val;
+                          setFormData({...formData, connections: updated});
+                        }}
+                      >
+                        <SelectTrigger className="h-6 text-[9px] font-mono"><SelectValue placeholder="Port..." /></SelectTrigger>
+                        <SelectContent>
+                          {sourceComp.ports.map(p => <SelectItem key={p} value={p} className="text-[10px]">{p}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[8px] uppercase font-bold">Destination Component</Label>
+                    <Select 
+                      value={conn.destComponentId} 
+                      onValueChange={(val) => {
+                        const updated = [...(formData.connections || [])];
+                        updated[connIdx].destComponentId = val;
+                        updated[connIdx].destPort = undefined;
+                        setFormData({...formData, connections: updated});
+                      }}
+                    >
+                      <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectContent>
+                        {allComponents.map((c: TechnicalComponent) => <SelectItem key={c.id} value={c.id} className="text-xs">{c.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    {destComp?.ports && destComp.ports.length > 0 && (
+                      <Select 
+                        value={conn.destPort} 
+                        onValueChange={(val) => {
+                          const updated = [...(formData.connections || [])];
+                          updated[connIdx].destPort = val;
+                          setFormData({...formData, connections: updated});
+                        }}
+                      >
+                        <SelectTrigger className="h-6 text-[9px] font-mono"><SelectValue placeholder="Port..." /></SelectTrigger>
+                        <SelectContent>
+                          {destComp.ports.map(p => <SelectItem key={p} value={p} className="text-[10px]">{p}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-[8px] uppercase font-bold">Destination Component</Label>
-                  <Select 
-                    value={conn.destComponentId} 
-                    onValueChange={(val) => {
-                      const updated = [...(formData.connections || [])];
-                      updated[connIdx].destComponentId = val;
-                      setFormData({...formData, connections: updated});
-                    }}
-                  >
-                    <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select..." /></SelectTrigger>
-                    <SelectContent>
-                      {allComponents.map((c: TechnicalComponent) => <SelectItem key={c.id} value={c.id} className="text-xs">{c.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-3 gap-2">
+                   <div className="space-y-1">
+                     <Label className="text-[8px] uppercase font-bold">Link Type</Label>
+                     <Select 
+                       value={conn.type} 
+                       onValueChange={(val) => {
+                         const updated = [...(formData.connections || [])];
+                         updated[connIdx].type = val as any;
+                         setFormData({...formData, connections: updated});
+                       }}
+                     >
+                       <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                       <SelectContent>
+                         {['Ethernet', 'Serial', 'RF', 'Power', 'Grounding', 'Control', 'Signal', 'Other'].map(t => <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>)}
+                       </SelectContent>
+                     </Select>
+                   </div>
+                   <div className="space-y-1">
+                     <Label className="text-[8px] uppercase font-bold">Connector</Label>
+                     <Input 
+                       placeholder="e.g. RJ45" 
+                       className="h-7 text-[10px]" 
+                       value={conn.connectorType || ''}
+                       onChange={(e) => {
+                         const updated = [...(formData.connections || [])];
+                         updated[connIdx].connectorType = e.target.value;
+                         setFormData({...formData, connections: updated});
+                       }}
+                     />
+                   </div>
+                   <div className="space-y-1">
+                     <Label className="text-[8px] uppercase font-bold">Cable/Wire ID</Label>
+                     <Input 
+                       placeholder="W001" 
+                       className="h-7 text-[10px] font-mono" 
+                       value={conn.cableId || ''}
+                       onChange={(e) => {
+                         const updated = [...(formData.connections || [])];
+                         updated[connIdx].cableId = e.target.value;
+                         setFormData({...formData, connections: updated});
+                       }}
+                     />
+                   </div>
                 </div>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                 <div className="space-y-1">
-                   <Label className="text-[8px] uppercase font-bold">Link Type</Label>
-                   <Select 
-                     value={conn.type} 
-                     onValueChange={(val) => {
-                       const updated = [...(formData.connections || [])];
-                       updated[connIdx].type = val as any;
-                       setFormData({...formData, connections: updated});
-                     }}
-                   >
-                     <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
-                     <SelectContent>
-                       {['Ethernet', 'Serial', 'RF', 'Power', 'Grounding', 'Control', 'Signal', 'Other'].map(t => <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>)}
-                     </SelectContent>
-                   </Select>
-                 </div>
-                 <div className="space-y-1">
-                   <Label className="text-[8px] uppercase font-bold">Connector</Label>
-                   <Input 
-                     placeholder="e.g. RJ45" 
-                     className="h-7 text-[10px]" 
-                     value={conn.connectorType || ''}
+                <div className="flex justify-between items-center">
+                  <Input 
+                     placeholder="Route notes (e.g. Expected: -10dBm)" 
+                     className="h-7 text-[9px] flex-1 mr-2" 
+                     value={conn.notes || ''}
                      onChange={(e) => {
                        const updated = [...(formData.connections || [])];
-                       updated[connIdx].connectorType = e.target.value;
+                       updated[connIdx].notes = e.target.value;
                        setFormData({...formData, connections: updated});
                      }}
-                   />
-                 </div>
-                 <div className="space-y-1">
-                   <Label className="text-[8px] uppercase font-bold">Cable/Wire ID</Label>
-                   <Input 
-                     placeholder="W001" 
-                     className="h-7 text-[10px] font-mono" 
-                     value={conn.cableId || ''}
-                     onChange={(e) => {
-                       const updated = [...(formData.connections || [])];
-                       updated[connIdx].cableId = e.target.value;
-                       setFormData({...formData, connections: updated});
-                     }}
-                   />
-                 </div>
+                  />
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeGlobalConnection(connIdx)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-              <div className="flex justify-between items-center">
-                <Input 
-                   placeholder="Route notes (e.g. Signal strength -10dBm)" 
-                   className="h-7 text-[9px] flex-1 mr-2" 
-                   value={conn.notes || ''}
-                   onChange={(e) => {
-                     const updated = [...(formData.connections || [])];
-                     updated[connIdx].notes = e.target.value;
-                     setFormData({...formData, connections: updated});
-                   }}
-                />
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeGlobalConnection(connIdx)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
           {(!formData.connections || formData.connections.length === 0) && (
             <div className="text-center py-4 bg-muted/10 border border-dashed rounded text-[10px] text-muted-foreground uppercase font-bold">
-              No cross-assembly wiring defined.
+              No cross-component wiring defined.
             </div>
           )}
         </div>
@@ -520,10 +573,10 @@ function PubForm({
 
       <div className="grid gap-2">
         <Label className="text-[11px] uppercase font-black text-primary flex items-center gap-2">
-          <BookOpen className="h-4 w-4" /> Technical Documentation (Tribal Knowledge)
+          <BookOpen className="h-4 w-4" /> Technical Documentation (Field Notes)
         </Label>
         <Textarea 
-          placeholder="Document unusual field behavior, common workarounds, or undocumented technical nuances here..." 
+          placeholder="Document field findings, unusual signal behavior, or undocumented technical nuances..." 
           className="h-32 text-xs" 
           value={formData.technicalKnowledge || ''} 
           onChange={e => setFormData({...formData, technicalKnowledge: e.target.value})} 
