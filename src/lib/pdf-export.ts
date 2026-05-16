@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { EquipmentAsset, MaintenanceLog, AssetTemplate, TechnicalAssembly, TechnicalComponent, TechnicalConnection } from './db';
 
 const primaryColor = [45, 65, 45]; // Olive Drab RGB
+const secondaryColor = [80, 80, 80];
 
 export const exportReadinessReport = (stats: { assetCount: number; deadlineCount: number; fmcCount: number }) => {
   const doc = new jsPDF();
@@ -72,58 +73,74 @@ export const exportAssetHistoryReport = (asset: EquipmentAsset & { template?: As
 export const exportPubsCatalog = (templates: AssetTemplate[]) => {
   const doc = new jsPDF();
   const date = format(new Date(), 'yyyyMMdd_HHmm');
-  doc.setFontSize(18);
-  doc.text('TECHNICAL PUBLICATIONS CATALOG', 105, 20, { align: 'center' });
   
   templates.forEach((t, i) => {
     if (i > 0) doc.addPage();
-    doc.setFontSize(14);
-    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.text(t.nomenclature, 15, 30);
-    doc.setFontSize(10);
-    doc.setTextColor(0);
-    doc.text(`NSN: ${t.nsn} | TAMCN: ${t.tamcn}`, 15, 37);
-    doc.setFontSize(11);
-    doc.text('Field Technical Knowledge:', 15, 47);
-    const splitText = doc.splitTextToSize(t.technicalKnowledge || 'No field notes recorded.', 180);
-    doc.text(splitText, 15, 53);
-
-    let currentY = 60 + (splitText.length * 5);
     
-    // List Assemblies and Components
+    // Cover Section
+    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.rect(0, 0, 210, 40, 'F');
+    doc.setFontSize(22);
+    doc.setTextColor(255);
+    doc.text('TECHNICAL MANUAL', 15, 25);
+    
+    doc.setTextColor(0);
+    doc.setFontSize(16);
+    doc.text(t.nomenclature, 15, 55);
+    doc.setFontSize(10);
+    doc.text(`NSN: ${t.nsn} | TAMCN: ${t.tamcn}`, 15, 62);
+    
+    doc.setFontSize(12);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text('1.0 FIELD TECHNICAL KNOWLEDGE & OBSERVATIONS', 15, 75);
+    doc.setTextColor(0);
+    doc.setFontSize(10);
+    const splitText = doc.splitTextToSize(t.technicalKnowledge || 'No field notes recorded.', 180);
+    doc.text(splitText, 15, 82);
+
+    let currentY = 90 + (splitText.length * 5);
+    
+    // Section 2: Assemblies
+    doc.setFontSize(12);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text('2.0 SYSTEM HIERARCHY & COMPONENT SPECIFICATIONS', 15, currentY);
+    currentY += 7;
+
     t.assemblies.forEach(assembly => {
-      if (currentY > 260) { doc.addPage(); currentY = 20; }
-      doc.setFontSize(12);
-      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.text(`Assembly: ${assembly.name}`, 15, currentY);
-      currentY += 7;
+      if (currentY > 250) { doc.addPage(); currentY = 20; }
+      doc.setFontSize(11);
+      doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+      doc.text(`Subsystem: ${assembly.name}`, 15, currentY);
+      currentY += 5;
       
       autoTable(doc, {
         startY: currentY,
-        head: [['Component', 'Ports', 'Specs']],
+        head: [['Component', 'Purpose', 'Ports/Plugs', 'Expected Readings']],
         body: assembly.components.map(c => [
           c.name,
+          c.purpose || '-',
           c.ports?.join(', ') || '-',
-          (c.expectedMeasurements || []).map(m => `${m.name}: ${m.value}`).join(', ') || '-'
+          (c.expectedMeasurements || []).map(m => `${m.name}: ${m.value}`).join('\n') || '-'
         ]),
-        headStyles: { fillColor: [80, 80, 80] },
+        headStyles: { fillColor: secondaryColor },
+        styles: { fontSize: 8 },
       });
-      currentY = (doc as any).lastAutoTable.finalY + 10;
+      currentY = (doc as any).lastAutoTable.finalY + 12;
     });
 
-    // List Topology / Connections
+    // Section 3: Topology
     if (t.connections && t.connections.length > 0) {
-      if (currentY > 250) { doc.addPage(); currentY = 20; }
+      if (currentY > 240) { doc.addPage(); currentY = 20; }
       doc.setFontSize(12);
       doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.text('System Topology (Signal Paths)', 15, currentY);
-      currentY += 5;
+      doc.text('3.0 SYSTEM TOPOLOGY (WIRING & SIGNAL PATHS)', 15, currentY);
+      currentY += 7;
       
       const allComponents = t.assemblies.flatMap(a => a.components);
       
       autoTable(doc, {
         startY: currentY,
-        head: [['Source', 'Port', 'Dest', 'Port', 'Type', 'Cable ID']],
+        head: [['Source', 'Port', 'Dest', 'Port', 'Signal Type', 'Cable ID', 'Notes']],
         body: t.connections.map(conn => {
           const src = allComponents.find(c => c.id === conn.sourceComponentId);
           const dest = allComponents.find(c => c.id === conn.destComponentId);
@@ -133,37 +150,17 @@ export const exportPubsCatalog = (templates: AssetTemplate[]) => {
             dest?.name || 'Unknown',
             conn.destPort || '-',
             conn.type,
-            conn.cableId || '-'
+            conn.cableId || '-',
+            conn.notes || '-'
           ];
         }),
-        headStyles: { fillColor: [120, 120, 120] },
+        headStyles: { fillColor: primaryColor },
+        styles: { fontSize: 8 },
       });
-      currentY = (doc as any).lastAutoTable.finalY + 10;
     }
   });
   
-  doc.save(`PUBS_Catalog_${date}.pdf`);
-};
-
-export const exportMasterLogs = (logs: (MaintenanceLog & { asset?: EquipmentAsset; template?: AssetTemplate })[]) => {
-  const doc = new jsPDF('l');
-  const date = format(new Date(), 'yyyyMMdd_HHmm');
-  doc.setFontSize(18);
-  doc.text('MASTER MAINTENANCE LOG (ERO)', 148, 20, { align: 'center' });
-  autoTable(doc, {
-    startY: 30,
-    head: [['Date', 'Asset / Serial', 'SR#', 'Maintainer', 'Action', 'Status']],
-    body: logs.map(l => [
-      format(l.timestamp, 'MMM d, yy'),
-      `${l.template?.nomenclature ?? 'Unknown'} / ${l.asset?.serialNumber ?? 'N/A'}`,
-      l.serviceRequestId || 'N/A',
-      l.technician,
-      l.activityDescription,
-      l.status
-    ]),
-    headStyles: { fillColor: primaryColor },
-  });
-  doc.save(`Master_Logs_${date}.pdf`);
+  doc.save(`Technical_Manual_${date}.pdf`);
 };
 
 export const exportFullUnitJournal = async (data: {

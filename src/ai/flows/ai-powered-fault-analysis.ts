@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview A Genkit flow for AI-powered fault analysis.
+ * @fileOverview A Genkit flow for AI-powered fault analysis using full system topology.
  */
 
 import {ai} from '@/ai/genkit';
@@ -12,6 +12,7 @@ const ComponentSpecSchema = z.object({
   alias: z.string().optional(),
   purpose: z.string().optional(),
   measurements: z.string().optional().describe('Structured measurements/specs.'),
+  ports: z.array(z.string()).optional().describe('Available plugs and port labels.'),
   knownFaults: z.array(z.object({
     symptom: z.string(),
     cause: z.string(),
@@ -23,7 +24,9 @@ const ConnectionSchema = z.object({
   type: z.string(),
   connectorType: z.string().optional(),
   sourceComponent: z.string(),
+  sourcePort: z.string().optional(),
   destComponent: z.string(),
+  destPort: z.string().optional(),
   cableId: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -45,11 +48,11 @@ const AIPoweredFaultAnalysisInputSchema = z.object({
   equipmentType: z.string(),
   nsn: z.string().optional(),
   tamcn: z.string().optional(),
-  technicalKnowledge: z.string().optional().describe('Freeform field notes or tribal knowledge.'),
-  assemblies: z.array(AssemblySchema).optional().describe('Hierarchical technical structure.'),
-  connections: z.array(ConnectionSchema).optional().describe('System-wide wiring and signal paths.'),
-  currentFaultDescription: z.string().describe('A detailed description of the fault currently observed.'),
-  historicalMaintenanceLogs: z.array(MaintenanceLogEntrySchema).describe('Past maintenance history.'),
+  technicalKnowledge: z.string().optional(),
+  assemblies: z.array(AssemblySchema).optional(),
+  connections: z.array(ConnectionSchema).optional(),
+  currentFaultDescription: z.string().describe('Detailed description of the fault observed.'),
+  historicalMaintenanceLogs: z.array(MaintenanceLogEntrySchema),
 });
 
 const AIPoweredFaultAnalysisOutputSchema = z.object({
@@ -67,27 +70,27 @@ const aiPoweredFaultAnalysisPrompt = ai.definePrompt({
   name: 'aiPoweredFaultAnalysisPrompt',
   input: { schema: AIPoweredFaultAnalysisInputSchema },
   output: { schema: AIPoweredFaultAnalysisOutputSchema },
-  prompt: `You are an expert technical diagnostician specializing in ground electronics maintenance.
-Analyze the fault for: {{{equipmentType}}} (NSN: {{{nsn}}}).
+  prompt: `You are an expert technical diagnostician. Analyze this fault for: {{{equipmentType}}}.
 
-Technical Topology & Specs:
-Assemblies:
+System Topology (Signal Paths & Signal Flow):
+{{#each connections}}
+- {{{this.type}}} Link: {{{this.sourceComponent}}}{{#if this.sourcePort}} (Port: {{{this.sourcePort}}}){{/if}} -> {{{this.destComponent}}}{{#if this.destPort}} (Port: {{{this.destPort}}}){{/if}} [Cable: {{{this.cableId}}}]
+  Notes: {{{this.notes}}}
+{{/each}}
+
+System Hierarchy & Components:
 {{#each assemblies}}
-- Assembly: {{{this.name}}}
+- Subsystem: {{{this.name}}}
   Components:
   {{#each this.components}}
-  - {{{this.name}}} ({{{this.purpose}}})
-    Specs: {{{this.measurements}}}
+  - {{{this.name}}} (Purpose: {{{this.purpose}}})
+    Specs/Expected: {{{this.measurements}}}
+    Available Ports: {{#each this.ports}}{{{this}}}, {{/each}}
     Known Faults: {{#each this.knownFaults}}{{{this.symptom}}} -> {{{this.fix}}}; {{/each}}
   {{/each}}
 {{/each}}
 
-System-Wide Signal Paths / Connections:
-{{#each connections}}
-- {{{this.type}}} [{{{this.cableId}}}] : {{{this.sourceComponent}}} -> {{{this.destComponent}}} ({{{this.connectorType}}}) {{{this.notes}}}
-{{/each}}
-
-Field Knowledge (Tribal): {{{technicalKnowledge}}}
+Field Notes: {{{technicalKnowledge}}}
 
 Observed Fault: {{{currentFaultDescription}}}
 
@@ -96,7 +99,7 @@ Maintenance History:
 - {{{this.faultObserved}}} | Actions: {{{this.repairActions}}} | Outcome: {{{this.outcome}}}
 {{/each}}
 
-Provide a high-fidelity diagnostic report. Map potential failures against the structured connection paths and component measurements provided. Ensure steps align with standard electronics troubleshooting procedures (e.g., check signal path continuity, verify power rails).`
+Analyze the fault using the structured connections. Identify if the signal path is broken at specific port interfaces or across cable IDs. Suggest troubleshooting steps aligned with the system's wiring and component specs.`
 });
 
 const aiPoweredFaultAnalysisFlow = ai.defineFlow(
