@@ -128,14 +128,23 @@ function TemplatesContent() {
 
     setIsSaving(true);
     try {
-      const cleanedConnections = cleanupOrphanedConnections(formData.assemblies || [], formData.connections || []);
+      // Final cleanup of any trailing empty strings in ports before saving
+      const cleanedAssemblies = (formData.assemblies || []).map(asm => ({
+        ...asm,
+        components: asm.components.map(c => ({
+          ...c,
+          ports: (c.ports || []).map(p => p.trim()).filter(p => p !== '')
+        }))
+      }));
+
+      const cleanedConnections = cleanupOrphanedConnections(cleanedAssemblies, formData.connections || []);
       
       const payload = {
         nomenclature: formData.nomenclature.trim(),
         nsn: (formData.nsn || '').trim(),
         tamcn: (formData.tamcn || '').trim(),
         technicalKnowledge: (formData.technicalKnowledge || '').trim(),
-        assemblies: formData.assemblies || [],
+        assemblies: cleanedAssemblies,
         connections: cleanedConnections,
         createdAt: id ? undefined : Date.now(),
       };
@@ -360,7 +369,9 @@ function PubForm({
                             className="h-7 text-[10px] font-mono"
                             value={comp.ports?.join(', ') || ''}
                             onChange={(e) => {
-                              const ports = e.target.value.split(',').map(p => p.trim()).filter(p => p !== '');
+                              const val = e.target.value;
+                              // Split by comma but allow trailing spaces/commas for typing fluidity
+                              const ports = val.split(',').map(p => p.trim());
                               const updated = [...formData.assemblies];
                               updated[idx].components[cIdx].ports = ports;
                               setFormData({...formData, assemblies: updated});
@@ -390,7 +401,8 @@ function PubForm({
                                value={comp.expectedMeasurements?.map(m => `${m.name}: ${m.value}`).join('\n') || ''}
                                onChange={(e) => {
                                  const lines = e.target.value.split('\n');
-                                 const measurements = lines.filter(l => l.includes(':')).map(l => {
+                                 const measurements = lines.map(l => {
+                                   if (!l.includes(':')) return { name: l.trim(), value: '' };
                                    const [n, v] = l.split(':');
                                    return { name: n.trim(), value: v.trim() };
                                  });
@@ -461,7 +473,7 @@ function PubForm({
                       >
                         <SelectTrigger className="h-6 text-[9px] font-mono"><SelectValue placeholder="Port..." /></SelectTrigger>
                         <SelectContent>
-                          {sourceComp.ports.map(p => <SelectItem key={p} value={p} className="text-[10px]">{p}</SelectItem>)}
+                          {sourceComp.ports.filter(p => p !== '').map(p => <SelectItem key={p} value={p} className="text-[10px]">{p}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     )}
@@ -493,7 +505,7 @@ function PubForm({
                       >
                         <SelectTrigger className="h-6 text-[9px] font-mono"><SelectValue placeholder="Port..." /></SelectTrigger>
                         <SelectContent>
-                          {destComp.ports.map(p => <SelectItem key={p} value={p} className="text-[10px]">{p}</SelectItem>)}
+                          {destComp.ports.filter(p => p !== '').map(p => <SelectItem key={p} value={p} className="text-[10px]">{p}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     )}
